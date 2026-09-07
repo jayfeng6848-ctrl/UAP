@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: uap-postgres
+    environment:
+      # Local development credentials only. Never reuse in any shared environment.
+      POSTGRES_USER: uap
+      POSTGRES_PASSWORD: uap
+      POSTGRES_DB: uap
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uap -d uap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    container_name: uap-api
+    environment:
+      APP_ENV: development
+      APP_NAME: UAP
+      APP_VERSION: 0.1.0
+      DATABASE_URL: postgresql+psycopg://uap:uap@postgres:5432/uap
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Optional: enable with `docker compose --profile cache up -d`.
+  redis:
+    image: redis:7-alpine
+    container_name: uap-redis
+    profiles: ["cache"]
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
