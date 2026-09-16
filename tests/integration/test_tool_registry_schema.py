@@ -94,7 +94,7 @@ _FIXTURE_NOT_PUBLISHED = "fixture_note_published"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
     yield
     reset_test_database()
 
@@ -269,15 +269,32 @@ def test_ts6_primary_keys(db) -> None:
 
 
 def test_ts7_timestamp_columns_are_timestamptz(db) -> None:
-    """TS7 — every timestamp column is `timestamp with time zone` (project convention)."""
+    """TS7 — every B1-5 timestamp column is `timestamptz(3)`.
+
+    Platform rule (CORE_DOMAIN_MODEL §10 时间策略 / STEP1A_DESIGN_REPORT §12):
+    precision `timestamptz(3)`. Corrected platform-wide by the corrective
+    migration `0009_timestamp_precision` (20 tables / 72 columns).
+
+    Strengthened per the platform correction: asserts **both** the timezone type
+    and `datetime_precision = 3` (the previous assertion only checked the type,
+    so it could not have caught the precision drift).
+    """
     rows = _rows(
-        "SELECT table_name, column_name, data_type FROM information_schema.columns "
+        "SELECT table_name, column_name, data_type, datetime_precision "
+        "FROM information_schema.columns "
         "WHERE table_name = ANY(:t) AND data_type LIKE 'timestamp%'",
         t=list(B15_TABLES),
     )
     assert rows, "expected timestamp columns on B1-5 tables"
-    bad = [(r[0], r[1], r[2]) for r in rows if r[2] != "timestamp with time zone"]
-    assert bad == []
+    # (a) timezone-aware
+    bad_type = [(r[0], r[1], r[2]) for r in rows if r[2] != "timestamp with time zone"]
+    assert bad_type == [], bad_type
+    # (b) platform precision = 3（冻结规则）
+    bad_precision = [(r[0], r[1], r[3]) for r in rows if r[3] != 3]
+    assert bad_precision == [], bad_precision
+    # (c) 覆盖 B1-5 全部时间列：tools×3 + tool_versions×2 + tool_permissions×1
+    assert len(rows) == 6, sorted((r[0], r[1]) for r in rows)
+    assert {r[0] for r in rows} == B15_TABLES
     # tools carries the only updated_at in B1-5
     updated = {r[0] for r in rows if r[1] == "updated_at"}
     assert updated == {"tools"}
@@ -640,7 +657,7 @@ def test_tv4_trigger_is_the_enforcing_object(db) -> None:
 # ========================================================= TM1-TM8 (migration)
 def test_tm1_upgrade_0007_to_0008(db) -> None:
     """TM1 — 0007 -> 0008 upgrade succeeds."""
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
 
 
 def test_tm2_downgrade_0008_to_0007(db) -> None:
@@ -718,8 +735,8 @@ def test_tm7_b1_4_objects_intact(db) -> None:
 
 
 def test_tm8_head_and_trigger_set(db) -> None:
-    """TM8 — head is 0008 and B1-5 introduces exactly two triggers."""
-    assert current_revision() == "0008_b1_5_tool_registry"
+    """TM8 — head is 0009 and B1-5 introduces exactly two triggers."""
+    assert current_revision() == "0009_timestamp_precision"
     rows = _rows(
         "SELECT tgname, tgtype FROM pg_trigger WHERE NOT tgisinternal "
         "AND tgrelid::regclass::text = ANY(:t)", t=list(B15_TABLES)

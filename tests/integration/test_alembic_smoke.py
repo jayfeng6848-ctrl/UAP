@@ -48,7 +48,7 @@ def _engine():
 def test_upgrade_head_reaches_infrastructure(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
 
 
 def test_no_business_table_created(empty_db) -> None:
@@ -68,10 +68,11 @@ def test_no_business_table_created(empty_db) -> None:
             ]
     finally:
         engine.dispose()
-    # B1-5 head = 5 identity + 4 tenant/space + 4 authorization + 1 bootstrap state
-    # + 3 resource/ACL (resources/acl_subject_types/resource_permissions)
-    # + 3 tool tables (tools/tool_versions/tool_permissions)
-    # + alembic version.
+    # head = 0009_timestamp_precision（corrective migration，不新增表）
+    #          = 5 identity + 4 tenant/space + 4 authorization + 1 bootstrap state
+    #          + 3 resource/ACL (resources/acl_subject_types/resource_permissions)
+    #          + 3 tool tables (tools/tool_versions/tool_permissions)
+    #          + alembic version.
     # NO other core/business tables (agents/ai_*/events/tool_executions/... yet).
     assert tables == sorted(
         [
@@ -155,11 +156,11 @@ def test_downgrade_base_is_reversible(empty_db) -> None:
     assert set(tables).issubset({"alembic_version"}), f"unexpected tables: {tables}"
     # And from this state a fresh upgrade works again (round trip).
     upgrade(cfg, "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
 
 
 def test_upgrade_rerun_idempotent(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
     upgrade(cfg, "head")  # second run is a no-op but must still succeed
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"

@@ -1,0 +1,265 @@
+"""Platform timestamp precision guard — frozen rule `timestamptz(3)`.
+
+Platform rule (not B1-5-local):
+  * ``STEP1A_DESIGN_REPORT.md §12 时间策略`` — 精度 ``timestamptz(3)``
+  * ``CORE_DOMAIN_MODEL.md §10 时间策略`` — "精度 | ``timestamptz(3)``（毫秒）"
+
+Corrected platform-wide by the corrective migration
+``0009_timestamp_precision`` (20 tables / 72 columns), which is **not**
+a business phase. Historical migrations 0001–0008 are untouched.
+
+What this file guards (platform-wide, hence separate from the B1-5 suite):
+  * PG1  UAP 范围内禁止 `timestamp without time zone`
+  * PG2  UAP 全部时间列 `datetime_precision = 3`
+  * PG3  覆盖集合 = 20 表 / 72 列（与 migration 的静态清单逐项一致）
+  * PG4  0009 是 corrective migration（`down_revision = 0008`），不与业务 Phase 混编
+  * PG5  校正未新增/删除任何业务表对象（表数不变）
+  * PG6  校正未丢对象：依赖时间列的 CHECK / 部分索引 / trigger / function 完好
+  * PG7  downgrade → precision 6，re-upgrade → precision 3（双向可执行）
+
+Runs against the disposable ``uap_b1_test`` database only (never ``uap``).
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+
+import pytest
+import sqlalchemy as sa
+
+from tests.integration.alembic_testkit import (
+    BASE_DSN,
+    current_revision,
+    database_reachable,
+    downgrade,
+    make_config,
+    reset_test_database,
+    upgrade,
+)
+
+pytestmark = pytest.mark.integration
+
+if not database_reachable():
+    pytest.skip(
+        "PostgreSQL is not reachable; start it with `docker compose up -d postgres`",
+        allow_module_level=True,
+    )
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+PREVIOUS_REVISION = "0008_b1_5_tool_registry"
+CORRECTIVE_REVISION = "0009_timestamp_precision"
+PLATFORM_PRECISION = 3
+LEGACY_PRECISION = 6
+
+# 20 business tables / 21 physical (incl. alembic_version) — platform scope at P07.
+BUSINESS_TABLES = 20
+PHYSICAL_TABLES = 21
+
+
+# --------------------------------------------------------------------------- #
+# fixtures / helpers
+# --------------------------------------------------------------------------- #
+@pytest.fixture()
+def db():
+    reset_test_database()
+    upgrade(make_config(lock_mode="fail"), "head")
+    assert current_revision() == CORRECTIVE_REVISION
+    yield
+    reset_test_database()
+
+
+def _engine():
+    return sa.create_engine(BASE_DSN)
+
+
+def _rows(sql: str, **params):
+    engine = _engine()
+    try:
+        with engine.connect() as conn:
+            return conn.execute(sa.text(sql), params).fetchall()
+    finally:
+        engine.dispose()
+
+
+def _scalar(sql: str, **params):
+    engine = _engine()
+    try:
+        with engine.connect() as conn:
+            return conn.execute(sa.text(sql), params).scalar()
+    finally:
+        engine.dispose()
+
+
+def _migration_module():
+    """Load the corrective migration module to reuse its authoritative static list."""
+    path = REPO_ROOT / "migrations_alembic" / "versions" / f"{CORRECTIVE_REVISION}.py"
+    spec = importlib.util.spec_from_file_location("_m0009", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _platform_timestamps():
+    """All timestamp columns of the platform (public schema), as (table, column, type, precision)."""
+    return _rows(
+        "SELECT table_name, column_name, data_type, datetime_precision "
+        "FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND data_type LIKE 'timestamp%' "
+        "ORDER BY table_name, ordinal_position"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# PG1 — no `timestamp without time zone` inside UAP
+# --------------------------------------------------------------------------- #
+def test_pg1_no_timestamp_without_time_zone(db) -> None:
+    """PG1 — UAP 范围内禁止 `timestamp without time zone`（CORE §10: 禁用无时区类型）。"""
+    offenders = [
+        (r[0], r[1]) for r in _platform_timestamps() if r[2] != "timestamp with time zone"
+    ]
+    assert offenders == [], offenders
+
+
+# --------------------------------------------------------------------------- #
+# PG2 — every platform timestamp column is `timestamptz(3)`
+# --------------------------------------------------------------------------- #
+def test_pg2_all_platform_timestamps_are_precision_3(db) -> None:
+    """PG2 — 平台全部时间列 `datetime_precision = 3`（冻结规则 `timestamptz(3)`）。"""
+    rows = _platform_timestamps()
+    assert rows, "expected platform timestamp columns"
+    bad = [(r[0], r[1], r[2], r[3]) for r in rows if r[3] != PLATFORM_PRECISION]
+    assert bad == [], bad
+    assert _scalar(
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_schema='public' AND data_type LIKE 'timestamp%' "
+        f"AND datetime_precision = {PLATFORM_PRECISION}"
+    ) == len(rows)
+
+
+# --------------------------------------------------------------------------- #
+# PG3 — coverage set: 20 tables / 72 columns, matching the migration's static list
+# --------------------------------------------------------------------------- #
+def test_pg3_coverage_matches_migration_static_list(db) -> None:
+    """PG3 — 覆盖集合 = 20 表 / 72 列，与 0009 的静态清单逐项一致（无遗漏、无多余）。"""
+    module = _migration_module()
+    expected = set(module._pairs())
+    assert len(module.TIMESTAMP_COLUMNS) == 20, len(module.TIMESTAMP_COLUMNS)
+    assert len(expected) == 72, len(expected)
+
+    catalog = {(r[0], r[1]) for r in _platform_timestamps()}
+    assert catalog == expected, {
+        "missing_in_catalog": sorted(expected - catalog),
+        "extra_in_catalog": sorted(catalog - expected),
+    }
+
+    # 反向核对：平台业务表内不存在"清单外"的时间列
+    assert _scalar(
+        "SELECT count(DISTINCT table_name) FROM information_schema.columns "
+        "WHERE table_schema='public' AND data_type LIKE 'timestamp%'"
+    ) == 20
+
+
+# --------------------------------------------------------------------------- #
+# PG4 — 0009 is a corrective migration, linked to 0008
+# --------------------------------------------------------------------------- #
+def test_pg4_corrective_migration_linkage() -> None:
+    """PG4 — 0009 为 corrective migration：`down_revision = 0008`，head = 0009。"""
+    module = _migration_module()
+    assert module.revision == CORRECTIVE_REVISION
+    assert module.down_revision == PREVIOUS_REVISION
+    reset_test_database()
+    try:
+        upgrade(make_config(lock_mode="fail"), "head")
+        assert current_revision() == CORRECTIVE_REVISION
+    finally:
+        reset_test_database()
+
+
+# --------------------------------------------------------------------------- #
+# PG5 — correction did not add/drop business tables
+# --------------------------------------------------------------------------- #
+def test_pg5_table_count_unchanged(db) -> None:
+    """PG5 — 校正不改变表集合（业务表 20 / 物理表 21）。"""
+    tables = {
+        r[0]
+        for r in _rows(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+        )
+    }
+    assert len(tables - {"alembic_version"}) == BUSINESS_TABLES, sorted(tables)
+    assert _scalar(
+        "SELECT count(*) FROM information_schema.tables "
+        "WHERE table_schema NOT IN ('pg_catalog','information_schema')"
+    ) == PHYSICAL_TABLES
+
+
+# --------------------------------------------------------------------------- #
+# PG6 — correction dropped nothing that depends on those columns
+# --------------------------------------------------------------------------- #
+def test_pg6_timestamp_dependent_objects_survive(db) -> None:
+    """PG6 — 依赖时间列的 CHECK / 部分索引 / trigger / function 全部完好。"""
+    # CHECK 引用时间列
+    assert _scalar(
+        "SELECT count(*) FROM pg_constraint WHERE conname='ck_sessions_expiry'"
+    ) == 1
+    # 部分索引引用时间列
+    indexes = {
+        r[0]
+        for r in _rows(
+            "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
+            "AND (indexdef ILIKE '%expires_at%' OR indexdef ILIKE '%removed_at%')"
+        )
+    }
+    assert indexes == {"ix_sessions_expires_active", "uq_memberships"}, indexes
+    # trigger / function（精度无关，必须未被重建或丢失）
+    assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='set_updated_at'") == 1
+    assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
+    assert _scalar(
+        "SELECT count(*) FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid "
+        "WHERE NOT t.tgisinternal AND p.proname = 'set_updated_at'"
+    ) == 14
+    # UAP trigger 总数不变（27）
+    assert _scalar(
+        "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE NOT t.tgisinternal AND n.nspname = 'public'"
+    ) == 27
+    # 时间列上的 now() 默认未丢失（34）
+    assert _scalar(
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_schema='public' AND data_type LIKE 'timestamp%' "
+        "AND column_default = 'now()'"
+    ) == 34
+
+
+# --------------------------------------------------------------------------- #
+# PG7 — downgrade restores declaration precision; re-upgrade re-applies
+# --------------------------------------------------------------------------- #
+def test_pg7_downgrade_and_reupgrade_roundtrip() -> None:
+    """PG7 — `0009 → 0008` 恢复 precision 6；`0008 → 0009` 再次应用 precision 3。
+
+    NOTE: downgrade 只恢复 **声明精度**；已舍入到毫秒的微秒值不可恢复
+    （data-level lossy，见 migration docstring）。
+    """
+    cfg = make_config(lock_mode="fail")
+    reset_test_database()
+    try:
+        upgrade(cfg, "head")
+
+        def _precisions():
+            return {(r[0], r[1]): r[3] for r in _platform_timestamps()}
+
+        assert set(_precisions().values()) == {PLATFORM_PRECISION}
+
+        downgrade(cfg, PREVIOUS_REVISION)
+        assert current_revision() == PREVIOUS_REVISION
+        after_down = _precisions()
+        assert set(after_down.values()) == {LEGACY_PRECISION}, sorted(set(after_down.values()))
+        assert len(after_down) == 72
+
+        upgrade(cfg, "head")
+        assert current_revision() == CORRECTIVE_REVISION
+        assert set(_precisions().values()) == {PLATFORM_PRECISION}
+    finally:
+        reset_test_database()

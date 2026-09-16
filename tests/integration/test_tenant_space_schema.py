@@ -62,7 +62,7 @@ FORBIDDEN = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
     yield
     reset_test_database()
 

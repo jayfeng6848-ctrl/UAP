@@ -103,7 +103,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
     yield
     reset_test_database()
 
@@ -221,7 +221,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0008_b1_5_tool_registry"
+    assert current_revision() == "0009_timestamp_precision"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}
