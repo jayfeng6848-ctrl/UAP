@@ -90,7 +90,7 @@ P09_ACL_TRIGGERS = {
 FORBIDDEN_TABLES = {
     "resource_relations",
     "agents", "agent_versions", "agent_permissions",
-    "tools", "tool_versions", "tool_permissions", "tool_executions",
+    "tool_executions",
     "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs", "groups",
 }
@@ -103,7 +103,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     yield
     reset_test_database()
 
@@ -195,6 +195,8 @@ def test_exact_table_set_and_no_forbidden_tables(db) -> None:
         "tenants", "spaces", "tenant_memberships", "memberships",
         "roles", "permissions", "role_permissions", "platform_memberships",
         "platform_state",
+        # B1-5 (P07) delivered tool tables — no longer "forbidden"
+        "tools", "tool_versions", "tool_permissions",
     } | B14_TABLES
     assert tables == expected, (
         f"unexpected: {tables - expected} / missing: {expected - tables}"
@@ -219,7 +221,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}

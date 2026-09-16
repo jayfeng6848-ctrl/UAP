@@ -43,7 +43,7 @@ IDENTITY_TABLES = {"users", "identities", "credentials", "devices", "sessions"}
 # platform_memberships — none of those are "forbidden" any more.
 FORBIDDEN_BUSINESS_TABLES = {
     "agents", "agent_versions", "agent_permissions",
-    "tools", "tool_versions", "tool_permissions", "tool_executions",
+    "tool_executions",
     "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs",
 }
@@ -53,7 +53,7 @@ FORBIDDEN_BUSINESS_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     yield
     reset_test_database()
 
@@ -214,11 +214,11 @@ def test_updated_at_trigger_maintains_value(db) -> None:
 # ============================================================ Test C + D
 def test_rerun_and_downgrade_roundtrip(db) -> None:
     upgrade(make_config(lock_mode="fail"), "head")  # C: rerun is a no-op
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     downgrade(make_config(lock_mode="fail"), "base")  # D: full teardown
     assert current_revision() is None
     upgrade(make_config(lock_mode="fail"), "head")  # D: re-upgrade works
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
 
 
 # ============================================================ Security

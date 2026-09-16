@@ -36,7 +36,7 @@ AUTHORIZATION_TABLES = {
 }
 FUTURE_TABLES = {
     "agents", "agent_versions", "agent_permissions",
-    "tools", "tool_versions", "tool_permissions", "tool_executions",
+    "tool_executions",
     "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs", "groups",
 }
@@ -46,7 +46,7 @@ FUTURE_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     yield
     reset_test_database()
 
@@ -287,7 +287,7 @@ def test_backfill_on_upgrade_with_existing_0004_data() -> None:
     finally:
         conn.close(); engine.dispose()
     upgrade(cfg, "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     rows = _rows("SELECT r.key, tm.status FROM tenant_memberships tm "
                  "JOIN roles r ON tm.role_id = r.id ORDER BY tm.status")
     assert rows == [("tenant_member", "active"), ("tenant_member", "removed")]

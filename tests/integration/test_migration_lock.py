@@ -65,7 +65,7 @@ def _hold_lock(seconds: float, session_level: bool = False) -> None:
 def test_single_runner_lock_acquire_release(clean_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     # lock is fully released after the migration transaction ended
     assert advisory_lock_rows() == 0
 
@@ -108,7 +108,7 @@ def test_second_runner_wait_mode_blocks_then_succeeds(clean_db) -> None:
     elapsed = time.monotonic() - started
 
     holder.join()
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     assert elapsed >= 1.0, "wait-mode runner did not actually wait for the lock"
     assert advisory_lock_rows() == 0
 
@@ -131,7 +131,7 @@ def test_lock_released_after_abnormal_connection_close(clean_db) -> None:
 
     # A fresh runner can now take the lock and migrate.
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
 
 
 # --------------------------------------------- T4 (not persistent)

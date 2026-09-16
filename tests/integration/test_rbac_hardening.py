@@ -40,7 +40,7 @@ if not database_reachable():
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0007_b1_4_resource_acl"
+    assert current_revision() == "0008_b1_5_tool_registry"
     yield
     reset_test_database()
 
