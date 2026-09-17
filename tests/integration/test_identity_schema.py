@@ -44,7 +44,6 @@ IDENTITY_TABLES = {"users", "identities", "credentials", "devices", "sessions"}
 FORBIDDEN_BUSINESS_TABLES = {
     "agents", "agent_versions", "agent_permissions",
     "tool_executions",
-    "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs",
 }
 
@@ -53,7 +52,7 @@ FORBIDDEN_BUSINESS_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     yield
     reset_test_database()
 
@@ -214,11 +213,11 @@ def test_updated_at_trigger_maintains_value(db) -> None:
 # ============================================================ Test C + D
 def test_rerun_and_downgrade_roundtrip(db) -> None:
     upgrade(make_config(lock_mode="fail"), "head")  # C: rerun is a no-op
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     downgrade(make_config(lock_mode="fail"), "base")  # D: full teardown
     assert current_revision() is None
     upgrade(make_config(lock_mode="fail"), "head")  # D: re-upgrade works
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
 
 
 # ============================================================ Security

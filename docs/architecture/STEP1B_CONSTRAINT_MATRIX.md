@@ -217,6 +217,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
+| FK | `tenant_id NULL → tenants.id RESTRICT`（NULL = 平台内置） |
 | UQ | 平台级 `uq_tools_platform ON (lower(key)) WHERE tenant_id IS NULL`；租户级 `uq_tools_tenant ON (tenant_id, lower(key)) WHERE tenant_id IS NOT NULL` |
 | CK | `risk_level IN ('LOW','MEDIUM','HIGH','CRITICAL')`；`timeout_ms BETWEEN 100 AND 600000`；`idempotency_mode IN ('none','key_required','natural_key')`；`audit_policy IN ('sampling','full','full_with_payload')` |
 | NN | id, key, name, risk_level, timeout_ms, idempotency_mode, audit_policy, approval_required, enabled, created_at, updated_at |
@@ -323,7 +324,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
-| FK | `primary_model_id → ai_models.id R`（NN） |
+| FK | `primary_model_id → ai_models.id R`（NN）；`tenant_id NULL → tenants.id R`；`space_id NULL → spaces.id R` |
 | UQ | `uq_ai_routes ON (COALESCE(tenant_id,'0...'), COALESCE(space_id,'0...'), capability, priority)` |
 | CK | `capability IN ('chat','embeddings','rerank','vision','audio_asr','audio_tts','moderation')`；`priority >= 0` |
 | NN | id, capability, priority, primary_model_id, enabled, created_at, updated_at |
@@ -334,6 +335,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
+| FK | `tenant_id NULL → tenants.id R`；`space_id NULL → spaces.id R` |
 | UQ | `uq_ai_policies ON (COALESCE(tenant_id,'0...'), COALESCE(space_id,'0...'), lower(name))` |
 | CK | **`allow_fallback = false OR fallback_preserves_classification = true`**（HIGHLY_CONFIDENTIAL 降级封死）；`budget_daily_usd >= 0`（建议）；`latency_budget_ms >= 0`（建议） |
 | NN | id, name, max_classification, require_private, allow_fallback, fallback_preserves_classification, enabled, created_at, updated_at |
@@ -344,6 +346,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `(id, occurred_at)`（分区） |
+| FK | `provider_id NULL → ai_providers.id R`；`model_id NULL → ai_models.id R`（`agent_id` / `actor_id` / `tenant_id` / `space_id` 无 FK） |
 | NN | id, capability, classification, status, occurred_at |
 | NULL | tenant_id, space_id, actor_id, agent_id, provider_id, model_id, tokens, cost_usd, latency_ms, error_code, correlation_id |
 | CK | `status IN (...)`（success/error/...按实现定义） |

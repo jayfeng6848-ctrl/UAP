@@ -388,7 +388,7 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | capability → model 的路由与 fallback 链 |
 | PK | `id` |
-| FK | `tenant_id NULL`（平台默认）、`space_id NULL`、`primary_model_id → ai_models.id ON DELETE RESTRICT` |
+| FK | `tenant_id NULL → tenants.id ON DELETE RESTRICT`（平台默认）、`space_id NULL → spaces.id ON DELETE RESTRICT`、`primary_model_id → ai_models.id ON DELETE RESTRICT` |
 | fields | `capability`、`priority int`、`fallback_chain jsonb`（`[{model_id, when: {...}}]`）、`enabled bool`、`created_at`、`updated_at` |
 | UQ | `uq_ai_routes on (COALESCE(tenant_id,'0...'), COALESCE(space_id,'0...'), capability, priority)` |
 | CK | `capability IN ('chat','embeddings','rerank','vision','audio_asr','audio_tts','moderation')` |
@@ -399,7 +399,7 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | 数据分级 → 供应商准入 / fallback / 预算 / 延迟约束 |
 | PK | `id` |
-| FK | `tenant_id NULL`、`space_id NULL` |
+| FK | `tenant_id NULL → tenants.id ON DELETE RESTRICT`、`space_id NULL → spaces.id ON DELETE RESTRICT` |
 | fields | `name`、`max_classification`、`allowed_privacy_tiers jsonb`、`denied_providers jsonb`、`require_private bool`、`allow_fallback bool`、`fallback_preserves_classification bool DEFAULT true`、`budget_daily_usd NULL`、`latency_budget_ms NULL`、`redaction_profile NULL`、`enabled bool`、`created_at`、`updated_at` |
 | UQ | `uq_ai_policies on (COALESCE(tenant_id,'0...'), COALESCE(space_id,'0...'), lower(name))` |
 | CK | `allow_fallback = false OR fallback_preserves_classification = true`（**禁止绕过分级的降级**） |
@@ -982,7 +982,7 @@ UUIDv7 会泄露创建时间（毫秒）。因此：
 | 技术子实体 | `resources → resource_permissions`（resource_id） | ACL 是资源的技术从属，随资源**受控 purge** 删除（资源 soft delete 时 ACL 保留） |
 | 1:1 扩展 | 域扩展表 `id → resources.id` | 共享主键 1:1，域表生命周期**完全从属** registry 行；随资源受控 purge 销毁。**注意**：触发路径是 `DELETE FROM resources`（purge job 显式执行），不是 tenants/spaces 级联 |
 | 层级边 | `resource_relations` parent/child → resources.id | 层级边无独立业务价值；`resource_relations` 为 P2 可选（STEP 1-B 不建） |
-| 技术子实体 | `ai_providers → ai_models`、`ai_models → ai_request_logs`(若建 FK) | 模型目录随 provider purge 清理 |
+| 技术子实体 | `ai_providers → ai_models`、`ai_models → ai_request_logs`（FK 已建，**ON DELETE RESTRICT**） | 模型目录随 provider purge 清理 |
 
 **明确禁止 CASCADE**（RESTRICT / 受控流程）：
 - `tenants → spaces`（RESTRICT）

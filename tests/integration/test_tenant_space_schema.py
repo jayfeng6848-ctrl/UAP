@@ -14,6 +14,8 @@ Covers
 
 from __future__ import annotations
 
+import re
+
 import uuid as _uuid
 
 import pytest
@@ -48,12 +50,26 @@ EXPECTED_TABLES = {
     "resources", "acl_subject_types", "resource_permissions",
     # B1-5 (P07) delivered tools / tool_versions / tool_permissions
     "tools", "tool_versions", "tool_permissions",
+    # B1-6 (P08) delivered the AI gateway tables (ai_request_logs 为分区父表；
+    # 其当月子分区 ai_request_logs_<YYYYMM> 由 _expected_tables() 动态并入)
+    "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
 }
+AI_PARTITION_PREFIX = "ai_request_logs_"
+
+
+def _actual_tables() -> set[str]:
+    return {r[0] for r in _rows(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+    )}
+
+
+def _expected_tables() -> set[str]:
+    """EXPECTED_TABLES + 实际存在的 ai_request_logs 子分区（分区名含 UTC 月份 ⇒ 动态）。"""
+    return EXPECTED_TABLES | {t for t in _actual_tables() if t.startswith(AI_PARTITION_PREFIX)}
 FORBIDDEN = {
     "resource_relations",
     "agents", "agent_versions", "agent_permissions",
     "tool_executions",
-    "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs", "groups",
 }
 
@@ -62,7 +78,7 @@ FORBIDDEN = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     yield
     reset_test_database()
 
@@ -99,11 +115,14 @@ def _rule(constraint: str):
 
 # ======================================================== exact table set
 def test_exact_table_count_and_no_forbidden_tables(db) -> None:
-    tables = {r[0] for r in _rows(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-    )}
-    assert tables == EXPECTED_TABLES, f"unexpected: {tables - EXPECTED_TABLES} / missing: {EXPECTED_TABLES - tables}"
+    tables = _actual_tables()
+    expected = _expected_tables()
+    assert tables == expected, f"unexpected: {tables - expected} / missing: {expected - tables}"
     assert tables.isdisjoint(FORBIDDEN)
+    # P08 分区表：恰好一个当月子分区，命名符合 ai_request_logs_<YYYYMM>（DC-1 = A FROZEN）
+    partitions = {t for t in tables if t.startswith(AI_PARTITION_PREFIX)}
+    assert len(partitions) == 1, sorted(partitions)
+    assert re.fullmatch(r"ai_request_logs_\d{6}", next(iter(partitions)))
 
 
 # ================================================================= tenants

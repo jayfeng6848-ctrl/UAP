@@ -52,9 +52,34 @@ CORRECTIVE_REVISION = "0009_timestamp_precision"
 PLATFORM_PRECISION = 3
 LEGACY_PRECISION = 6
 
-# 20 business tables / 21 physical (incl. alembic_version) — platform scope at P07.
-BUSINESS_TABLES = 20
-PHYSICAL_TABLES = 21
+# Platform scope at P08 (B1-6 / 0010_b1_6_ai_gateway).
+#   20 business tables @P07 + 5 AI gateway tables @P08 = 25 business tables
+#   + 1 当月子分区（ai_request_logs_<YYYYMM>，UTC calendar month） = 26 public tables
+#   + alembic_version = 27 physical tables
+BUSINESS_TABLES = 26
+PHYSICAL_TABLES = 27
+
+# Current chain head（本文件只断言 head 常量，不假设具体业务阶段）。
+CURRENT_HEAD = "0010_b1_6_ai_gateway"
+
+# --------------------------------------------------------------------------- #
+# P08 (0010_b1_6_ai_gateway) timestamp columns — explicit static list.
+#
+# 这些列在 0010 中**直接以 timestamptz(3) 创建**（`postgresql.TIMESTAMP(precision=3)`）；
+# 0009 的静态清单（20 表 / 72 列）只覆盖 0003–0008 建立的时间列，**不因 P08 改变**。
+# 本 guard 的覆盖集合 = 0009 清单 ∪ P08 清单 ⇒ 平台内不存在"清单外"时间列。
+# --------------------------------------------------------------------------- #
+P08_TIMESTAMP_COLUMNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("ai_providers", ("health_checked_at", "created_at", "updated_at")),
+    ("ai_models", ("created_at", "updated_at")),
+    ("ai_routes", ("created_at", "updated_at")),
+    ("ai_policies", ("created_at", "updated_at")),
+    ("ai_request_logs", ("occurred_at",)),
+)
+P08_TABLES = 5
+P08_PAIRS = 10
+PLATFORM_TABLES = 20 + P08_TABLES        # 25 张业务表（含分区父表）
+PLATFORM_PAIRS = 72 + P08_PAIRS          # 82 个时间列（含 1 个分区键）
 
 
 # --------------------------------------------------------------------------- #
@@ -64,7 +89,7 @@ PHYSICAL_TABLES = 21
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == CORRECTIVE_REVISION
+    assert current_revision() == CURRENT_HEAD
     yield
     reset_test_database()
 
@@ -100,13 +125,23 @@ def _migration_module():
     return module
 
 
+# 时间列扫描：只审计**声明的**平台表，跳过分区子表（分区列按父表继承，
+# 在 information_schema 中会重复出现；P08 的 ai_request_logs_<YYYYMM> 即属此类）。
+_TS_SCAN = (
+    "FROM information_schema.columns c "
+    "JOIN pg_class k ON k.relname = c.table_name "
+    "JOIN pg_namespace n ON n.oid = k.relnamespace AND n.nspname = c.table_schema "
+    "WHERE c.table_schema = 'public' AND c.data_type LIKE 'timestamp%' "
+    "AND NOT k.relispartition "
+)
+
+
 def _platform_timestamps():
     """All timestamp columns of the platform (public schema), as (table, column, type, precision)."""
     return _rows(
-        "SELECT table_name, column_name, data_type, datetime_precision "
-        "FROM information_schema.columns "
-        "WHERE table_schema = 'public' AND data_type LIKE 'timestamp%' "
-        "ORDER BY table_name, ordinal_position"
+        "SELECT c.table_name, c.column_name, c.data_type, c.datetime_precision "
+        + _TS_SCAN
+        + "ORDER BY c.table_name, c.ordinal_position"
     )
 
 
@@ -131,9 +166,8 @@ def test_pg2_all_platform_timestamps_are_precision_3(db) -> None:
     bad = [(r[0], r[1], r[2], r[3]) for r in rows if r[3] != PLATFORM_PRECISION]
     assert bad == [], bad
     assert _scalar(
-        "SELECT count(*) FROM information_schema.columns "
-        "WHERE table_schema='public' AND data_type LIKE 'timestamp%' "
-        f"AND datetime_precision = {PLATFORM_PRECISION}"
+        "SELECT count(*) " + _TS_SCAN
+        + f"AND c.datetime_precision = {PLATFORM_PRECISION}"
     ) == len(rows)
 
 
@@ -141,11 +175,22 @@ def test_pg2_all_platform_timestamps_are_precision_3(db) -> None:
 # PG3 — coverage set: 20 tables / 72 columns, matching the migration's static list
 # --------------------------------------------------------------------------- #
 def test_pg3_coverage_matches_migration_static_list(db) -> None:
-    """PG3 — 覆盖集合 = 20 表 / 72 列，与 0009 的静态清单逐项一致（无遗漏、无多余）。"""
+    """PG3 — 覆盖集合 = 0009 静态清单（20 表 / 72 列）∪ P08 静态清单（5 表 / 10 列）。
+
+    0009 的清单是 historical migration 的产物，**未因 P08 改变**；
+    0010 新建的时间列在同一 guard 下逐项登记 ⇒ 无遗漏、无多余。
+    """
     module = _migration_module()
-    expected = set(module._pairs())
+    corrective = set(module._pairs())
     assert len(module.TIMESTAMP_COLUMNS) == 20, len(module.TIMESTAMP_COLUMNS)
-    assert len(expected) == 72, len(expected)
+    assert len(corrective) == 72, len(corrective)
+
+    p08 = {(table, column) for table, columns in P08_TIMESTAMP_COLUMNS for column in columns}
+    assert len(P08_TIMESTAMP_COLUMNS) == P08_TABLES, len(P08_TIMESTAMP_COLUMNS)
+    assert len(p08) == P08_PAIRS, len(p08)
+
+    expected = corrective | p08
+    assert len(expected) == PLATFORM_PAIRS, len(expected)
 
     catalog = {(r[0], r[1]) for r in _platform_timestamps()}
     assert catalog == expected, {
@@ -155,23 +200,22 @@ def test_pg3_coverage_matches_migration_static_list(db) -> None:
 
     # 反向核对：平台业务表内不存在"清单外"的时间列
     assert _scalar(
-        "SELECT count(DISTINCT table_name) FROM information_schema.columns "
-        "WHERE table_schema='public' AND data_type LIKE 'timestamp%'"
-    ) == 20
+        "SELECT count(DISTINCT c.table_name) " + _TS_SCAN
+    ) == PLATFORM_TABLES
 
 
 # --------------------------------------------------------------------------- #
 # PG4 — 0009 is a corrective migration, linked to 0008
 # --------------------------------------------------------------------------- #
 def test_pg4_corrective_migration_linkage() -> None:
-    """PG4 — 0009 为 corrective migration：`down_revision = 0008`，head = 0009。"""
+    """PG4 — 0009 为 corrective migration：`down_revision = 0008`，且链条可达 head。"""
     module = _migration_module()
     assert module.revision == CORRECTIVE_REVISION
     assert module.down_revision == PREVIOUS_REVISION
     reset_test_database()
     try:
         upgrade(make_config(lock_mode="fail"), "head")
-        assert current_revision() == CORRECTIVE_REVISION
+        assert current_revision() == CURRENT_HEAD
     finally:
         reset_test_database()
 
@@ -180,7 +224,11 @@ def test_pg4_corrective_migration_linkage() -> None:
 # PG5 — correction did not add/drop business tables
 # --------------------------------------------------------------------------- #
 def test_pg5_table_count_unchanged(db) -> None:
-    """PG5 — 校正不改变表集合（业务表 20 / 物理表 21）。"""
+    """PG5 — head(=P08) 处表集合与冻结阶段一致：业务表 25 + 1 当月子分区 = 26 / 物理 27。
+
+    原断言意图（"0009 未新增表"）由 `PG4` 的链检查与 `0010` 的冻结范围承载；
+    此处按当前 head 校准平台表集合（0009 的 corrective 语义未变）。
+    """
     tables = {
         r[0]
         for r in _rows(
@@ -215,22 +263,21 @@ def test_pg6_timestamp_dependent_objects_survive(db) -> None:
     # trigger / function（精度无关，必须未被重建或丢失）
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='set_updated_at'") == 1
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
+    # 14 @P07 + 4 @P08（tg_ai_*_set_updated_at）= 18
     assert _scalar(
         "SELECT count(*) FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid "
         "WHERE NOT t.tgisinternal AND p.proname = 'set_updated_at'"
-    ) == 14
-    # UAP trigger 总数不变（27）
+    ) == 18
+    # UAP trigger 总数：27 @P07 + 4 @P08 = 31
     assert _scalar(
         "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
         "JOIN pg_namespace n ON n.oid = c.relnamespace "
         "WHERE NOT t.tgisinternal AND n.nspname = 'public'"
-    ) == 27
-    # 时间列上的 now() 默认未丢失（34）
+    ) == 31
+    # 时间列上的 now() 默认：34 @P07 + 8（4 表 created_at/updated_at）+ 1（occurred_at）= 43
     assert _scalar(
-        "SELECT count(*) FROM information_schema.columns "
-        "WHERE table_schema='public' AND data_type LIKE 'timestamp%' "
-        "AND column_default = 'now()'"
-    ) == 34
+        "SELECT count(*) " + _TS_SCAN + "AND c.column_default = 'now()'"
+    ) == 43
 
 
 # --------------------------------------------------------------------------- #
@@ -259,7 +306,8 @@ def test_pg7_downgrade_and_reupgrade_roundtrip() -> None:
         assert len(after_down) == 72
 
         upgrade(cfg, "head")
-        assert current_revision() == CORRECTIVE_REVISION
+        assert current_revision() == CURRENT_HEAD
         assert set(_precisions().values()) == {PLATFORM_PRECISION}
+        assert len(_precisions()) == PLATFORM_PAIRS
     finally:
         reset_test_database()

@@ -48,7 +48,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 
 | 表 | 依赖 | FK | root |
 |---|---|---|---|
-| `tools` | tenants（NULL=平台内置，无实际 FK 强制） | — | ✅ **ROOT**（无出边） |
+| `tools` | tenants（NULL = 平台内置） | `tenant_id NULL → tenants.id RESTRICT` | ✅ **ROOT**（除 tenants 外无出边） |
 | `tool_versions` | tools | `tool_id → tools.id CASCADE` | |
 | `tool_permissions` | tools, tool_versions, permissions | `tool_id → tools.id CASCADE`；`version_id NULL → tool_versions.id CASCADE`；`permission_id → permissions.id CASCADE` | |
 | `tool_executions` | tenants, tools, tool_versions, agents, users | `tool_id → tools.id RESTRICT`；`tool_version_id → tool_versions.id RESTRICT`；`agent_id NULL → agents.id`（**Agent phase 后补 / 随 Agent 创建**）；`actor_id NULL → users.id` | |
@@ -71,9 +71,9 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 |---|---|---|---|
 | `ai_providers` | — | — | ✅ **ROOT** |
 | `ai_models` | ai_providers | `provider_id → ai_providers.id CASCADE` | |
-| `ai_routes` | ai_models（tenant/space NULL 无 FK） | `primary_model_id → ai_models.id RESTRICT` | |
-| `ai_policies` | tenants/spaces（NULL 无 FK） | —（无强 FK） | |
-| `ai_request_logs` | ai_providers, ai_models, agents（可选记录） | 分区表；FK 尽量保持 NULL 宽松或仅 provider/model | |
+| `ai_routes` | ai_models, tenants, spaces（tenant/space NULL 允许） | `primary_model_id → ai_models.id RESTRICT`；`tenant_id NULL → tenants.id RESTRICT`；`space_id NULL → spaces.id RESTRICT` | |
+| `ai_policies` | tenants/spaces（NULL 允许） | `tenant_id NULL → tenants.id RESTRICT`；`space_id NULL → spaces.id RESTRICT` | |
+| `ai_request_logs` | ai_providers, ai_models（`agent_id` 仅记录用途，无 FK ⇒ 不构成依赖） | 分区表；`provider_id NULL → ai_providers.id RESTRICT`；`model_id NULL → ai_models.id RESTRICT`；`agent_id` / `actor_id` / `tenant_id` / `space_id` **无 FK**（不构成 P08→P09 前向依赖） | |
 
 ### 1.7 Event / Audit 域（弱依赖）
 

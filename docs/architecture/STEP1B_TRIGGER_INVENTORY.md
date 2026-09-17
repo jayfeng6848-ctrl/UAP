@@ -161,7 +161,7 @@ Status: **DESIGN PREPARATION — 不创建任何 trigger**
 
 | 项 | 值 |
 |---|---|
-| name | `tg_agent_versions_immutable` / `tg_tool_versions_immutable` |
+| name | `tg_version_immutable`（agent_versions / tool_versions 共用同一名） |
 | table | agent_versions / tool_versions |
 | timing/event | BEFORE UPDATE OR DELETE |
 | purpose | `status='published'` 的行禁止 UPDATE/DELETE（deprecate/revoke 走应用层状态迁移 + 权限） |
@@ -201,7 +201,7 @@ events 的 claim 状态迁移由**应用层 CAS UPDATE 完成**，不加 trigger
 | H | tg_acl_user_hard_delete | users | AFTER DELETE | resource_permissions | P09 后 | ✅ |
 | I | tg_acl_role_delete_block | roles | BEFORE DELETE | resource_permissions | P09 后 | ✅ |
 | J | tg_agent_acl_expire | agents | AFTER U/D | resource_permissions | P09 后 | ✅ |
-| K | tg_*_versions_immutable | agent/tool_versions | BEFORE U/D | 本表 | 表建时 | ✅ |
+| K | tg_version_immutable | agent/tool_versions | BEFORE U/D | 本表 | 表建时 | ✅ |
 | L | tg_audit_immutable | audit_logs | BEFORE U/D | audit_logs | P10 | ✅ |
 | M | （events 无 trigger） | events | — | — | — | — |
 

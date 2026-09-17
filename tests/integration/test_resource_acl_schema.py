@@ -91,7 +91,6 @@ FORBIDDEN_TABLES = {
     "resource_relations",
     "agents", "agent_versions", "agent_permissions",
     "tool_executions",
-    "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     "events", "audit_logs", "groups",
 }
 
@@ -103,7 +102,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     yield
     reset_test_database()
 
@@ -185,6 +184,9 @@ def _registry_fixture(conn, key: str = "user"):
 
 
 # =========================================================== S1/S2 / M1-M4
+AI_PARTITION_PREFIX = "ai_request_logs_"
+
+
 def test_exact_table_set_and_no_forbidden_tables(db) -> None:
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
@@ -197,10 +199,16 @@ def test_exact_table_set_and_no_forbidden_tables(db) -> None:
         "platform_state",
         # B1-5 (P07) delivered tool tables — no longer "forbidden"
         "tools", "tool_versions", "tool_permissions",
+        # B1-6 (P08) delivered the AI gateway tables；其当月子分区
+        # ai_request_logs_<YYYYMM> 动态并入（分区名含 UTC 月份）
+        "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     } | B14_TABLES
+    partitions = {t for t in tables if t.startswith(AI_PARTITION_PREFIX)}
+    expected |= partitions
     assert tables == expected, (
         f"unexpected: {tables - expected} / missing: {expected - tables}"
     )
+    assert len(partitions) == 1, sorted(partitions)
     assert tables.isdisjoint(FORBIDDEN_TABLES)
 
 
@@ -221,7 +229,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}

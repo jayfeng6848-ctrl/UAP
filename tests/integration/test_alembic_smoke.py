@@ -10,6 +10,8 @@ Verifies the migration infrastructure itself (B1-0 scope):
 
 from __future__ import annotations
 
+import re
+
 import pytest
 import sqlalchemy as sa
 
@@ -48,7 +50,7 @@ def _engine():
 def test_upgrade_head_reaches_infrastructure(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
 
 
 def test_no_business_table_created(empty_db) -> None:
@@ -68,13 +70,15 @@ def test_no_business_table_created(empty_db) -> None:
             ]
     finally:
         engine.dispose()
-    # head = 0009_timestamp_precision（corrective migration，不新增表）
+    # head = 0010_b1_6_ai_gateway（P08 AI Gateway：5 张 ai_* 表 + 1 当月子分区）
     #          = 5 identity + 4 tenant/space + 4 authorization + 1 bootstrap state
     #          + 3 resource/ACL (resources/acl_subject_types/resource_permissions)
     #          + 3 tool tables (tools/tool_versions/tool_permissions)
+    #          + 5 AI gateway tables (ai_providers/ai_models/ai_routes/ai_policies/ai_request_logs)
+    #          + 1 当月子分区 ai_request_logs_<YYYYMM>（UTC calendar month）
     #          + alembic version.
-    # NO other core/business tables (agents/ai_*/events/tool_executions/... yet).
-    assert tables == sorted(
+    # NO other core/business tables (agents/events/tool_executions/... yet).
+    static = sorted(
         [
             "alembic_version",
             "users", "identities", "credentials", "devices", "sessions",
@@ -83,8 +87,15 @@ def test_no_business_table_created(empty_db) -> None:
             "platform_state",
             "resources", "acl_subject_types", "resource_permissions",
             "tools", "tool_versions", "tool_permissions",
+            "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
         ]
-    ), f"unexpected tables: {tables}"
+    )
+    partitions = sorted(t for t in tables if t.startswith("ai_request_logs_"))
+    assert len(partitions) == 1, f"expected exactly one current-month partition, got {partitions}"
+    assert re.fullmatch(r"ai_request_logs_\d{6}", partitions[0]), partitions[0]
+    assert sorted(t for t in tables if not t.startswith("ai_request_logs_")) == static, (
+        f"unexpected tables: {tables}"
+    )
 
 
 def test_uuid_v7_function_present_and_compliant(empty_db) -> None:
@@ -156,11 +167,11 @@ def test_downgrade_base_is_reversible(empty_db) -> None:
     assert set(tables).issubset({"alembic_version"}), f"unexpected tables: {tables}"
     # And from this state a fresh upgrade works again (round trip).
     upgrade(cfg, "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
 
 
 def test_upgrade_rerun_idempotent(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
     upgrade(cfg, "head")  # second run is a no-op but must still succeed
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"

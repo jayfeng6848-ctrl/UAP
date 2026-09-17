@@ -40,7 +40,7 @@ if not database_reachable():
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0009_timestamp_precision"
+    assert current_revision() == "0010_b1_6_ai_gateway"
     yield
     reset_test_database()
 
