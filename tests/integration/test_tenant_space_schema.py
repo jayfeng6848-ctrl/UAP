@@ -53,6 +53,8 @@ EXPECTED_TABLES = {
     # B1-6 (P08) delivered the AI gateway tables (ai_request_logs 为分区父表；
     # 其当月子分区 ai_request_logs_<YYYYMM> 由 _expected_tables() 动态并入)
     "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
+    # P09 (0011) delivered the agent / tool-permission tables
+    "agents", "agent_versions", "agent_permissions", "tool_executions",
 }
 AI_PARTITION_PREFIX = "ai_request_logs_"
 
@@ -68,8 +70,7 @@ def _expected_tables() -> set[str]:
     return EXPECTED_TABLES | {t for t in _actual_tables() if t.startswith(AI_PARTITION_PREFIX)}
 FORBIDDEN = {
     "resource_relations",
-    "agents", "agent_versions", "agent_permissions",
-    "tool_executions",
+    # P09 tables were delivered by 0011 (no longer forbidden)
     "events", "audit_logs", "groups",
 }
 
@@ -78,7 +79,7 @@ FORBIDDEN = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     yield
     reset_test_database()
 

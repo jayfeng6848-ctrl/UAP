@@ -248,12 +248,12 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
-| FK | `tool_id → tools.id R`（NN）；`tool_version_id → tool_versions.id R`（NN）；`agent_id NULL → agents.id`；`actor_id NULL → users.id` |
+| FK | `tenant_id → tenants.id R`（NN）；`tool_id → tools.id R`（NN）；`tool_version_id → tool_versions.id R`（NN）；`agent_id NULL → agents.id SN`；`actor_id NULL → users.id SN` |
 | UQ | `uq_tool_exec_idem ON (tool_id, idempotency_key) WHERE idempotency_key IS NOT NULL`（部分） |
 | CK | `status IN ('running','succeeded','failed','denied','timeout')`；`attempts >= 1`；`duration_ms >= 0` |
-| NN | id, tool_id, tool_version_id, status, input_digest, attempts, started_at, correlation_id, created_at |
-| NULL | tenant_id?（设计为 NN 若按租户隔离）、agent_id, actor_id, idempotency_key, output_digest, risk_level, finished_at, duration_ms, error_code |
-| 保留 | 分区 90 天 hard delete |
+| NN | id, tenant_id, tool_id, tool_version_id, status, input_digest, attempts, started_at, correlation_id, created_at |
+| NULL | agent_id, actor_id, idempotency_key, output_digest, risk_level, finished_at, duration_ms, error_code |
+| 保留 | **不分区**，90 天 hard delete（D-P09-01 = B） |
 
 ---
 
@@ -264,10 +264,10 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
-| FK | `tenant_id → tenants.id`（NN）；`space_id NULL → spaces.id`；`owner_id → users.id`（NN）；`current_version_id NULL → agent_versions.id SN`（**deferred FK**，见 DEPENDENCY §4.1）；`default_route_id NULL → ai_routes.id SN` |
+| FK | `tenant_id → tenants.id R`（NN）；`space_id NULL → spaces.id R`；`owner_id → users.id R`（NN）；`current_version_id NULL → agent_versions.id SN`（**deferred FK**，见 DEPENDENCY §4.1）；`default_route_id NULL → ai_routes.id SN` |
 | UQ | `uq_agents_key ON (tenant_id, lower(key)) WHERE archived_at IS NULL`（部分） |
 | CK | `status IN ('draft','active','disabled','archived')`；`max_risk_level IN ('LOW','MEDIUM','HIGH','CRITICAL')` |
-| NN | id, tenant_id, key, name, status, max_risk_level, config, created_at, updated_at |
+| NN | id, tenant_id, key, name, status, max_risk_level, owner_id, config, created_at, updated_at |
 | NULL | space_id, description, current_version_id, default_route_id, archived_at |
 | 安全 | `config jsonb` 禁止 DSN / 凭据（CI 扫描） |
 
@@ -276,11 +276,11 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
-| FK | `agent_id → agents.id C`（NN）；`published_by NULL → users.id` |
+| FK | `agent_id → agents.id C`（NN）；`published_by NULL → users.id SN` |
 | UQ | `uq_agent_versions ON (agent_id, version)` |
 | CK | `status IN ('draft','published','deprecated','revoked')` |
 | NN | id, agent_id, version, definition, allowed_tools, checksum, status, created_at |
-| NULL | input_schema, output_schema, published_at |
+| NULL | input_schema, output_schema, published_at, published_by |
 | 不变性 | published 后禁 UPDATE/DELETE |
 
 ### `agent_permissions`
@@ -288,9 +288,11 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 类别 | 约束 |
 |---|---|
 | PK | `id` |
-| FK | `agent_id → agents.id C`（NN）；`version_id NULL → agent_versions.id C`；`permission_id NULL → permissions.id`；`tool_id NULL → tools.id` |
-| UQ | `(agent_id, COALESCE(version_id,...), COALESCE(permission_id,...), COALESCE(tool_id,...), COALESCE(resource_scope,''))` |
+| FK | `agent_id → agents.id C`（NN）；`version_id NULL → agent_versions.id C`；`permission_id NULL → permissions.id C`；`tool_id NULL → tools.id C` |
+| UQ | `uq_agent_perm on (agent_id, COALESCE(version_id,...), COALESCE(permission_id,...), COALESCE(tool_id,...), COALESCE(resource_scope,''))` |
 | CK | **至少一列非 NULL**（permission_id / tool_id / resource_scope）；`effect IN ('allow','deny')` |
+| NN | id, agent_id, effect, created_at |
+| NULL | version_id, permission_id, tool_id, resource_scope, conditions |
 | 备注 | 白名单语义：未列出即拒绝 |
 
 ---

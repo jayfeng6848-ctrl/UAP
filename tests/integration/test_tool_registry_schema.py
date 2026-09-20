@@ -69,8 +69,7 @@ B15_FK_DELETE_RULES = {
     "fk_tool_permissions_permission": "c",      # CASCADE
 }
 FORBIDDEN_TABLES = {
-    "tool_executions",
-    "agents", "agent_versions", "agent_permissions",
+    # P09 tables were delivered by 0011 (no longer forbidden)
     "events", "audit_logs", "groups", "resource_relations",
 }
 G_H_I_J = {
@@ -93,7 +92,7 @@ _FIXTURE_NOT_PUBLISHED = "fixture_note_published"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     yield
     reset_test_database()
 
@@ -197,18 +196,18 @@ def test_ts1_tables_exist(db) -> None:
 
 
 def test_ts2_table_counts(db) -> None:
-    """TS2 — P08 后：25 业务表 + 1 当月子分区 = 26 public 表；物理 27（含 alembic_version）。"""
+    """TS2 — P09 后：29 业务表 + 1 当月子分区 = 30 public 表；物理 31（含 alembic_version）。"""
     business = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )} - {"alembic_version"}
     partition = {t for t in business if t.startswith("ai_request_logs_")}
     assert len(partition) == 1, sorted(business)
-    assert len(business) == 26, sorted(business)
+    assert len(business) == 30, sorted(business)
     physical = _scalar(
         "SELECT count(*) FROM information_schema.tables "
         "WHERE table_schema NOT IN ('pg_catalog','information_schema')"
     )
-    assert physical == 27
+    assert physical == 31
 
 
 def test_ts3_tools_schema(db) -> None:
@@ -658,7 +657,7 @@ def test_tv4_trigger_is_the_enforcing_object(db) -> None:
 # ========================================================= TM1-TM8 (migration)
 def test_tm1_upgrade_0007_to_0008(db) -> None:
     """TM1 — 0007 -> 0008 upgrade succeeds."""
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
 
 
 def test_tm2_downgrade_0008_to_0007(db) -> None:
@@ -737,7 +736,7 @@ def test_tm7_b1_4_objects_intact(db) -> None:
 
 def test_tm8_head_and_trigger_set(db) -> None:
     """TM8 — head is 0009 and B1-5 introduces exactly two triggers."""
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     rows = _rows(
         "SELECT tgname, tgtype FROM pg_trigger WHERE NOT tgisinternal "
         "AND tgrelid::regclass::text = ANY(:t)", t=list(B15_TABLES)

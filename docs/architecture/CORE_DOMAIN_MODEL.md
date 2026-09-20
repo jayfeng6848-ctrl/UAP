@@ -285,7 +285,7 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | 执行实体（**不是模型**）：编排工具、策略与模型路由 |
 | PK | `id` |
-| FK | `tenant_id`；`space_id NULL`；`owner_id → users.id`；`current_version_id NULL → agent_versions.id ON DELETE SET NULL` |
+| FK | `tenant_id → tenants.id ON DELETE RESTRICT`；`space_id NULL → spaces.id ON DELETE RESTRICT`；`owner_id → users.id ON DELETE RESTRICT`；`current_version_id NULL → agent_versions.id ON DELETE SET NULL` |
 | fields | `key`、`name`、`description NULL`、`status`、`max_risk_level`、`default_route_id NULL → ai_routes.id`、`config jsonb`、`archived_at NULL`、`created_at`、`updated_at` |
 | UQ | `uq_agents_key on (tenant_id, lower(key)) WHERE archived_at IS NULL` |
 | CK | `status IN ('draft','active','disabled','archived')`；`max_risk_level IN ('LOW','MEDIUM','HIGH','CRITICAL')` |
@@ -296,7 +296,7 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | Agent 定义的不可变快照（发布后不可改） |
 | PK | `id` |
-| FK | `agent_id → agents.id ON DELETE CASCADE`；`published_by NULL → users.id` |
+| FK | `agent_id → agents.id ON DELETE CASCADE`；`published_by NULL → users.id ON DELETE SET NULL` |
 | fields | `version int`、`definition jsonb`、`input_schema jsonb NULL`、`output_schema jsonb NULL`、`allowed_tools jsonb`、`checksum`、`status`、`published_at NULL`、`created_at` |
 | UQ | `uq_agent_versions on (agent_id, version)` |
 | CK | `status IN ('draft','published','deprecated','revoked')` |
@@ -308,10 +308,10 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | Agent 能碰什么（权限、工具、资源范围），是"Agent 无 DB 权限"的数据表达 |
 | PK | `id` |
-| FK | `agent_id → agents.id ON DELETE CASCADE`；`version_id NULL → agent_versions.id ON DELETE CASCADE`；`permission_id NULL → permissions.id`；`tool_id NULL → tools.id` |
+| FK | `agent_id → agents.id ON DELETE CASCADE`；`version_id NULL → agent_versions.id ON DELETE CASCADE`；`permission_id NULL → permissions.id ON DELETE CASCADE`；`tool_id NULL → tools.id ON DELETE CASCADE` |
 | fields | `resource_scope NULL`（限定 space/resource_type）、`effect`、`conditions jsonb NULL`、`created_at` |
 | UQ | `uq_agent_perm on (agent_id, COALESCE(version_id,'00000000-...'), COALESCE(permission_id,'00000000-...'), COALESCE(tool_id,'00000000-...'), COALESCE(resource_scope,''))` |
-| CK | 至少一列非 NULL |
+| CK | ① 至少一列非 NULL（permission_id / tool_id / resource_scope）；② `effect IN ('allow','deny')` —— D-P09-05 = B（**2 条 CHECK**；约束名待 P09 DESIGN 确定） |
 
 #### `tools`
 
@@ -351,11 +351,11 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 |---|---|
 | purpose | 执行记录 + **幂等锚点** + 重试依据 |
 | PK | `id` |
-| FK | `tenant_id`；`tool_id`；`tool_version_id`；`agent_id NULL`；`actor_id NULL → users.id` |
+| FK | `tenant_id → tenants.id ON DELETE RESTRICT`（NN）；`tool_id → tools.id ON DELETE RESTRICT`；`tool_version_id → tool_versions.id ON DELETE RESTRICT`；`agent_id NULL → agents.id ON DELETE SET NULL`；`actor_id NULL → users.id ON DELETE SET NULL` |
 | fields | `idempotency_key NULL`、`status`、`input_digest`、`output_digest NULL`、`risk_level`、`attempts int`、`started_at`、`finished_at NULL`、`duration_ms NULL`、`error_code NULL`、`correlation_id`、`created_at` |
 | UQ | `uq_tool_exec_idem on (tool_id, idempotency_key) WHERE idempotency_key IS NOT NULL` |
-| CK | `status IN ('running','succeeded','failed','denied','timeout')` |
-| 保留 | 90 天后按分区删除（详见 §13） |
+| CK | `status IN ('running','succeeded','failed','denied','timeout')`；`attempts >= 1`；`duration_ms >= 0` —— D-P09-13（ND-01 = **3 条 CHECK**） |
+| 保留 | 90 天后 hard delete（**不分区** —— D-P09-01 = B，2026-09-17；详见 §13） |
 
 ---
 
@@ -957,7 +957,7 @@ UUIDv7 会泄露创建时间（毫秒）。因此：
 | `agent_versions` | **immutable**（只能 deprecate/revoke） | 同上 |
 | `tools` | **disable**（`enabled=false`），版本不可删 | 同上 |
 | `tool_versions` | **immutable** | 同上 |
-| `tool_executions` | **hard delete**（分区，90 天） | 高吞吐运维数据 |
+| `tool_executions` | **hard delete**（**不分区**，90 天 —— D-P09-01 = B） | 高吞吐运维数据 |
 | `events` | **hard delete**（分区，投递后 30 天） | outbox 语义，投递完成即失去价值 |
 | `audit_logs` | **immutable + 分区 drop**（默认 1 年，可配置） | 合规留存；不做行级删除 |
 | `ai_request_logs` | **hard delete**（分区，90 天） | 成本运维数据 |

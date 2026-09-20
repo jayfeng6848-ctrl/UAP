@@ -11,7 +11,7 @@ a business phase. Historical migrations 0001–0008 are untouched.
 What this file guards (platform-wide, hence separate from the B1-5 suite):
   * PG1  UAP 范围内禁止 `timestamp without time zone`
   * PG2  UAP 全部时间列 `datetime_precision = 3`
-  * PG3  覆盖集合 = 20 表 / 72 列（与 migration 的静态清单逐项一致）
+  * PG3  覆盖集合 = 0009 清单（20 表 / 72 列）∪ P08（5 表 / 10 列）∪ P09（4 表 / 9 列）
   * PG4  0009 是 corrective migration（`down_revision = 0008`），不与业务 Phase 混编
   * PG5  校正未新增/删除任何业务表对象（表数不变）
   * PG6  校正未丢对象：依赖时间列的 CHECK / 部分索引 / trigger / function 完好
@@ -52,15 +52,15 @@ CORRECTIVE_REVISION = "0009_timestamp_precision"
 PLATFORM_PRECISION = 3
 LEGACY_PRECISION = 6
 
-# Platform scope at P08 (B1-6 / 0010_b1_6_ai_gateway).
-#   20 business tables @P07 + 5 AI gateway tables @P08 = 25 business tables
-#   + 1 当月子分区（ai_request_logs_<YYYYMM>，UTC calendar month） = 26 public tables
-#   + alembic_version = 27 physical tables
-BUSINESS_TABLES = 26
-PHYSICAL_TABLES = 27
+# Platform scope at P09 (0011_p09_agent_tool_permission).
+#   20 business tables @P07 + 5 AI gateway tables @P08 + 4 P09 tables = 29 business tables
+#   + 1 当月子分区（ai_request_logs_<YYYYMM>，UTC calendar month） = 30 public tables
+#   + alembic_version = 31 physical tables
+BUSINESS_TABLES = 30
+PHYSICAL_TABLES = 31
 
 # Current chain head（本文件只断言 head 常量，不假设具体业务阶段）。
-CURRENT_HEAD = "0010_b1_6_ai_gateway"
+CURRENT_HEAD = "0011_p09_agent_tool_permission"
 
 # --------------------------------------------------------------------------- #
 # P08 (0010_b1_6_ai_gateway) timestamp columns — explicit static list.
@@ -78,8 +78,23 @@ P08_TIMESTAMP_COLUMNS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 P08_TABLES = 5
 P08_PAIRS = 10
-PLATFORM_TABLES = 20 + P08_TABLES        # 25 张业务表（含分区父表）
-PLATFORM_PAIRS = 72 + P08_PAIRS          # 82 个时间列（含 1 个分区键）
+
+# --------------------------------------------------------------------------- #
+# P09 (0011_p09_agent_tool_permission) timestamp columns — explicit static list.
+#
+# 这些列在 0011 中同样**直接以 timestamptz(3) 创建**；0009 的清单不因 P09 改变。
+# --------------------------------------------------------------------------- #
+P09_TIMESTAMP_COLUMNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("agents", ("created_at", "updated_at", "archived_at")),
+    ("agent_versions", ("created_at", "published_at")),
+    ("agent_permissions", ("created_at",)),
+    ("tool_executions", ("started_at", "finished_at", "created_at")),
+)
+P09_TABLES = 4
+P09_PAIRS = 9
+
+PLATFORM_TABLES = 20 + P08_TABLES + P09_TABLES   # 29 张业务表（含分区父表）
+PLATFORM_PAIRS = 72 + P08_PAIRS + P09_PAIRS      # 91 个时间列（含 1 个分区键）
 
 
 # --------------------------------------------------------------------------- #
@@ -175,10 +190,10 @@ def test_pg2_all_platform_timestamps_are_precision_3(db) -> None:
 # PG3 — coverage set: 20 tables / 72 columns, matching the migration's static list
 # --------------------------------------------------------------------------- #
 def test_pg3_coverage_matches_migration_static_list(db) -> None:
-    """PG3 — 覆盖集合 = 0009 静态清单（20 表 / 72 列）∪ P08 静态清单（5 表 / 10 列）。
+    """PG3 — 覆盖集合 = 0009（20 表 / 72 列）∪ P08（5 表 / 10 列）∪ P09（4 表 / 9 列）。
 
-    0009 的清单是 historical migration 的产物，**未因 P08 改变**；
-    0010 新建的时间列在同一 guard 下逐项登记 ⇒ 无遗漏、无多余。
+    0009 的清单是 historical migration 的产物，**未因 P08 / P09 改变**；
+    0010 / 0011 新建的时间列在同一 guard 下逐项登记 ⇒ 无遗漏、无多余。
     """
     module = _migration_module()
     corrective = set(module._pairs())
@@ -189,7 +204,18 @@ def test_pg3_coverage_matches_migration_static_list(db) -> None:
     assert len(P08_TIMESTAMP_COLUMNS) == P08_TABLES, len(P08_TIMESTAMP_COLUMNS)
     assert len(p08) == P08_PAIRS, len(p08)
 
-    expected = corrective | p08
+    p09 = {(table, column) for table, columns in P09_TIMESTAMP_COLUMNS for column in columns}
+    assert len(P09_TIMESTAMP_COLUMNS) == P09_TABLES, len(P09_TIMESTAMP_COLUMNS)
+    assert len(p09) == P09_PAIRS, len(p09)
+    assert p09 == {
+        ("agents", "archived_at"), ("agents", "created_at"), ("agents", "updated_at"),
+        ("agent_versions", "published_at"), ("agent_versions", "created_at"),
+        ("agent_permissions", "created_at"),
+        ("tool_executions", "started_at"), ("tool_executions", "finished_at"),
+        ("tool_executions", "created_at"),
+    }
+
+    expected = corrective | p08 | p09
     assert len(expected) == PLATFORM_PAIRS, len(expected)
 
     catalog = {(r[0], r[1]) for r in _platform_timestamps()}
@@ -224,9 +250,9 @@ def test_pg4_corrective_migration_linkage() -> None:
 # PG5 — correction did not add/drop business tables
 # --------------------------------------------------------------------------- #
 def test_pg5_table_count_unchanged(db) -> None:
-    """PG5 — head(=P08) 处表集合与冻结阶段一致：业务表 25 + 1 当月子分区 = 26 / 物理 27。
+    """PG5 — head(=P09) 处表集合与冻结阶段一致：业务表 29 + 1 当月子分区 = 30 / 物理 31。
 
-    原断言意图（"0009 未新增表"）由 `PG4` 的链检查与 `0010` 的冻结范围承载；
+    原断言意图（"0009 未新增表"）由 `PG4` 的链检查与 0010 / 0011 的冻结范围承载；
     此处按当前 head 校准平台表集合（0009 的 corrective 语义未变）。
     """
     tables = {
@@ -263,21 +289,22 @@ def test_pg6_timestamp_dependent_objects_survive(db) -> None:
     # trigger / function（精度无关，必须未被重建或丢失）
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='set_updated_at'") == 1
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
-    # 14 @P07 + 4 @P08（tg_ai_*_set_updated_at）= 18
+    # 14 @P07 + 4 @P08（tg_ai_*_set_updated_at）+ 1 @P09（tg_agents_set_updated_at）= 19
     assert _scalar(
         "SELECT count(*) FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid "
         "WHERE NOT t.tgisinternal AND p.proname = 'set_updated_at'"
-    ) == 18
-    # UAP trigger 总数：27 @P07 + 4 @P08 = 31
+    ) == 19
+    # UAP trigger 总数：27 @P07 + 4 @P08 + 3 @P09 = 34
     assert _scalar(
         "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
         "JOIN pg_namespace n ON n.oid = c.relnamespace "
         "WHERE NOT t.tgisinternal AND n.nspname = 'public'"
-    ) == 31
-    # 时间列上的 now() 默认：34 @P07 + 8（4 表 created_at/updated_at）+ 1（occurred_at）= 43
+    ) == 34
+    # 时间列上的 now() 默认：34 @P07 + 9 @P08 + 5 @P09（agents×2 / agent_versions×1 /
+    # agent_permissions×1 / tool_executions×1）= 48
     assert _scalar(
         "SELECT count(*) " + _TS_SCAN + "AND c.column_default = 'now()'"
-    ) == 43
+    ) == 48
 
 
 # --------------------------------------------------------------------------- #

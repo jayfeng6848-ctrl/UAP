@@ -50,7 +50,7 @@ def _engine():
 def test_upgrade_head_reaches_infrastructure(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
 
 
 def test_no_business_table_created(empty_db) -> None:
@@ -70,11 +70,12 @@ def test_no_business_table_created(empty_db) -> None:
             ]
     finally:
         engine.dispose()
-    # head = 0010_b1_6_ai_gateway（P08 AI Gateway：5 张 ai_* 表 + 1 当月子分区）
+    # head = 0011_p09_agent_tool_permission（P09：4 张 agent/tool-permission 表）
     #          = 5 identity + 4 tenant/space + 4 authorization + 1 bootstrap state
     #          + 3 resource/ACL (resources/acl_subject_types/resource_permissions)
     #          + 3 tool tables (tools/tool_versions/tool_permissions)
     #          + 5 AI gateway tables (ai_providers/ai_models/ai_routes/ai_policies/ai_request_logs)
+    #          + 4 P09 tables (agents/agent_versions/agent_permissions/tool_executions)
     #          + 1 当月子分区 ai_request_logs_<YYYYMM>（UTC calendar month）
     #          + alembic version.
     # NO other core/business tables (agents/events/tool_executions/... yet).
@@ -88,6 +89,7 @@ def test_no_business_table_created(empty_db) -> None:
             "resources", "acl_subject_types", "resource_permissions",
             "tools", "tool_versions", "tool_permissions",
             "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
+            "agents", "agent_versions", "agent_permissions", "tool_executions",
         ]
     )
     partitions = sorted(t for t in tables if t.startswith("ai_request_logs_"))
@@ -167,11 +169,11 @@ def test_downgrade_base_is_reversible(empty_db) -> None:
     assert set(tables).issubset({"alembic_version"}), f"unexpected tables: {tables}"
     # And from this state a fresh upgrade works again (round trip).
     upgrade(cfg, "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
 
 
 def test_upgrade_rerun_idempotent(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
     upgrade(cfg, "head")  # second run is a no-op but must still succeed
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"

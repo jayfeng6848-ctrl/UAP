@@ -66,7 +66,7 @@ Created: 2026-09-07 · Phase: `STEP 1-A / DESIGN ONLY`
 | 19 | `tools` | Agent 触达业务唯一通道 | `id` | 平台级/租户级两条部分唯一 | enabled/disabled；不硬删 |
 | 20 | `tool_versions` | Tool 契约快照 | `id` | `(tool_id, version)` 唯一 | published 后**不可变** |
 | 21 | `tool_permissions` | 调用 Tool 所需权限 | `id` | 复合唯一 | 随 tool |
-| 22 | `tool_executions` | 执行记录 + **幂等锚点** | `id` | `(tool_id, idempotency_key)` 部分唯一 | 分区，90 天 hard delete |
+| 22 | `tool_executions` | 执行记录 + **幂等锚点** | `id` | `(tool_id, idempotency_key)` 部分唯一 | **不分区**，90 天 hard delete（D-P09-01 = B） |
 | 23 | `ai_providers` | 厂商连接（**数据行，非代码分支**） | `id` | `key` 唯一 | enabled/disabled + health |
 | 24 | `ai_models` | 模型能力/成本/合规上限 | `id` | `(provider_id, model_key)` 唯一 | enabled/disabled |
 | 25 | `ai_routes` | capability → 主模型 + fallback 链 | `id` | `(tenant, space, capability, priority)` 唯一 | enabled/disabled |
@@ -381,7 +381,7 @@ PostgreSQL 18+ 提供内置 `uuidv7()` 函数。STEP 1-B 实施策略：
 | **revoke / disable** | `identities`、`devices`、`agents`、`tools` | 撤销即失效，但必须保留"曾存在"证据 |
 | **expire + hard delete** | `sessions`、`credentials`、`resource_permissions` | 随时间价值归零；凭据留着只增加泄露面 |
 | **immutable** | `agent_versions`、`tool_versions`、`audit_logs` | 可追溯性 / 合规，只能 deprecate 或整分区 drop |
-| **hard delete（分区）** | `events`(30d)、`tool_executions`(90d)、`ai_request_logs`(90d) | 高吞吐运维数据 |
+| **hard delete** | `events`(30d，分区)、`tool_executions`(90d，**不分区** —— D-P09-01 = B)、`ai_request_logs`(90d，分区) | 高吞吐运维数据 |
 
 保留期默认：audit 365d、events 30d、tool_executions 90d、ai_request_logs 90d、软删 30d 后 purge、归档 90d 后 purge。
 

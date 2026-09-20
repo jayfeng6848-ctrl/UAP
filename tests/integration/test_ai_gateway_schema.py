@@ -66,6 +66,8 @@ if not database_reachable():
     )
 
 REVISION = "0010_b1_6_ai_gateway"
+# 当前链 head（P09 / 0011）——head 断言用；REVISION 仅用于 B1-6 自身身份校验。
+HEAD_REVISION = "0011_p09_agent_tool_permission"
 PREVIOUS_REVISION = "0009_timestamp_precision"
 MIGRATION_FILE = ROOT / "migrations_alembic" / "versions" / f"{REVISION}.py"
 PARENT = "ai_request_logs"
@@ -137,10 +139,12 @@ AI_NN_COLUMNS = {
     "ai_request_logs": {"id", "occurred_at", "capability", "classification", "status"},
 }
 FORBIDDEN_TABLES = {
-    "agents", "agent_versions", "agent_permissions",
-    "tool_executions",
+    # P09 (agents / agent_versions / agent_permissions / tool_executions) was delivered by 0011
+    # and is therefore no longer forbidden.
     "events", "audit_logs", "resource_relations", "groups",
 }
+
+P09_TABLES = {"agents", "agent_versions", "agent_permissions", "tool_executions"}
 # D-B16-04：本表 status 无词表；测试夹具使用**中性字面值**，不构成任何 schema vocabulary
 _FIXTURE_STATUS = "fixture_note_checked"
 _NIL_UUID = "00000000-0000-0000-0000-000000000000"
@@ -153,7 +157,7 @@ _NIL_UUID = "00000000-0000-0000-0000-000000000000"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == REVISION
+    assert current_revision() == HEAD_REVISION
     yield
     reset_test_database()
 
@@ -469,10 +473,14 @@ def test_af5_no_fk_on_agent_actor_tenant_space(db) -> None:
             assert _scalar("SELECT count(*) FROM ai_request_logs") == 1
     finally:
         engine.dispose()
+    # B1-6 的不变量口径（P09 落地后仍然成立）：**P08 → P09 forward FK = 0**，
+    # 即没有任何 ai_* 表的外键指向 P09 表（原断言以"agents 表不存在"作等价前提，
+    # 该前提在 0011 之后不再适用，改为直接断言依赖方向）。
     assert _scalar(
-        "SELECT count(*) FROM pg_constraint WHERE contype='f' "
-        "AND confrelid::regclass::text = 'agents'"
-    ) == 0, "agents table must not exist at P08"
+        "SELECT count(*) FROM pg_constraint c "
+        "WHERE c.contype='f' AND c.conrelid::regclass::text LIKE 'ai\\_%' "
+        "AND c.confrelid::regclass::text = ANY(:t)", t=sorted(P09_TABLES)
+    ) == 0, "P08 -> P09 forward FK must stay 0"
 
 
 # ========================================================= AC1-AC8 (constraints)
@@ -809,7 +817,7 @@ def test_ag1_no_vendor_sdk_imports_in_core_or_intelligence(db) -> None:
                 ):
                     offenders.append(f"{path}:{stripped}")
     assert offenders == [], offenders
-    assert current_revision() == REVISION
+    assert current_revision() == HEAD_REVISION
 
 
 def test_ag2_core_has_no_industry_vocabulary(db) -> None:
@@ -841,7 +849,7 @@ def _forbidden_sets(path: pathlib.Path) -> dict[str, set[str]]:
 
 
 def test_ag3_forbidden_sets_synced(db) -> None:
-    """AG3 — 5 个既有测试文件的 FORBIDDEN/FUTURE 集合已移除 ai_*，保留 P09/P10 名称。"""
+    """AG3 — 既有测试的 FORBIDDEN/FUTURE 集合已移除 ai_* 与 P09 表；保留 P10 及未来名称。"""
     files = (
         "test_identity_schema.py",
         "test_rbac_schema.py",
@@ -854,11 +862,11 @@ def test_ag3_forbidden_sets_synced(db) -> None:
         assert sets, name
         for set_name, values in sets.items():
             assert values.isdisjoint(AI_TABLES), (name, set_name, sorted(values & AI_TABLES))
-            assert {"agents", "tool_executions"} <= values, (name, set_name)
+            assert values.isdisjoint(P09_TABLES), (name, set_name, sorted(values & P09_TABLES))
     # 平台 guard 的 head 常量同步
     guard = pathlib.Path("tests/integration/test_platform_timestamp_precision.py").read_text(
         encoding="utf-8")
-    assert 'CURRENT_HEAD = "0010_b1_6_ai_gateway"' in guard
+    assert 'CURRENT_HEAD = "0011_p09_agent_tool_permission"' in guard
 
 
 def test_ag4_repository_safety(db) -> None:
@@ -923,7 +931,7 @@ def test_am2_upgrade_order(db) -> None:
         "WHERE table_schema='public' AND table_name = ANY(:t)", t=list(AI_TABLES)
     ) == 0
     upgrade(cfg, "head")
-    assert current_revision() == REVISION
+    assert current_revision() == HEAD_REVISION
     assert _scalar(
         "SELECT count(*) FROM information_schema.tables "
         "WHERE table_schema='public' AND table_name = ANY(:t)", t=list(AI_TABLES)
@@ -986,21 +994,23 @@ def test_am4_roundtrip_object_set_stable(db) -> None:
     upgrade(cfg, "head")
     after = _catalog_snapshot()
     assert before == after, (before, after)
-    assert current_revision() == REVISION
+    assert current_revision() == HEAD_REVISION
 
 
 def test_am5_chain_shape() -> None:
-    """AM5 — 链长 = 10（0001…0010）· 唯一 head = 0010 · 无重复/缺失/分支。"""
+    """AM5 — 链长 = 11（0001…0011）· 唯一 head = 0011 · 无重复/缺失/分支。"""
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
     heads = script.get_heads()
-    assert heads == [REVISION], heads
+    assert heads == [HEAD_REVISION], heads
     revisions = list(script.walk_revisions())
-    assert len(revisions) == 10, [r.revision for r in revisions]
+    assert len(revisions) == 11, [r.revision for r in revisions]
     ids = [r.revision for r in revisions]
     assert len(ids) == len(set(ids))
-    assert ids[0] == REVISION and ids[-1] == "0001_baseline"
-    revision = next(r for r in revisions if r.revision == REVISION)
-    assert revision.down_revision == PREVIOUS_REVISION
+    assert ids[0] == HEAD_REVISION and ids[-1] == "0001_baseline"
+    revision = next(r for r in revisions if r.revision == HEAD_REVISION)
+    assert revision.down_revision == REVISION          # 0011 → 0010
+    parent = next(r for r in revisions if r.revision == REVISION)
+    assert parent.down_revision == PREVIOUS_REVISION   # 0010 → 0009
     # Alembic 将未声明值规范化为空 set（等价于 None）；depends_on 由 AM1 的模块级断言覆盖
     assert not revision.branch_labels
     assert "0009_timestamp_precision" in ids

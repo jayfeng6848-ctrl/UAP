@@ -89,8 +89,7 @@ P09_ACL_TRIGGERS = {
 }
 FORBIDDEN_TABLES = {
     "resource_relations",
-    "agents", "agent_versions", "agent_permissions",
-    "tool_executions",
+    # P09 tables were delivered by 0011 (no longer forbidden)
     "events", "audit_logs", "groups",
 }
 
@@ -102,7 +101,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     yield
     reset_test_database()
 
@@ -202,6 +201,8 @@ def test_exact_table_set_and_no_forbidden_tables(db) -> None:
         # B1-6 (P08) delivered the AI gateway tables；其当月子分区
         # ai_request_logs_<YYYYMM> 动态并入（分区名含 UTC 月份）
         "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
+        # P09 (0011) delivered the agent / tool-permission tables
+        "agents", "agent_versions", "agent_permissions", "tool_executions",
     } | B14_TABLES
     partitions = {t for t in tables if t.startswith(AI_PARTITION_PREFIX)}
     expected |= partitions
@@ -229,7 +230,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}

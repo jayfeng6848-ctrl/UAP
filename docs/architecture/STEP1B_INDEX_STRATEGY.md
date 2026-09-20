@@ -125,7 +125,7 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 | 索引 | 类型 | 服务查询 |
 |---|---|---|
 | UQ `(tool_id, version)` | UQ | 版本定位 |
-| `ix_texec_idem ON (tool_id, idempotency_key) WHERE idempotency_key IS NOT NULL` | 部分 UQ | **幂等锚点** |
+| `uq_tool_exec_idem ON (tool_id, idempotency_key) WHERE idempotency_key IS NOT NULL`（**UNIQUE INDEX** —— D-P09-04 = A） | 部分 UQ | **幂等锚点** |
 | `ix_texec_tenant_created ON (tenant_id, created_at DESC)` | btree | 执行历史列表 |
 | `ix_texec_status ON (status, started_at) WHERE status='running'` | 部分 btree | 超时重扫（running 超时判定）→ 若实现重试 job 需要 |
 

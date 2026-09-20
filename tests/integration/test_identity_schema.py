@@ -42,8 +42,7 @@ IDENTITY_TABLES = {"users", "identities", "credentials", "devices", "sessions"}
 # B1-2 delivered tenants/spaces/memberships; B1-3 delivered roles/permissions/role_permissions/
 # platform_memberships — none of those are "forbidden" any more.
 FORBIDDEN_BUSINESS_TABLES = {
-    "agents", "agent_versions", "agent_permissions",
-    "tool_executions",
+    # P09 tables were delivered by 0011 (no longer forbidden)
     "events", "audit_logs",
 }
 
@@ -52,7 +51,7 @@ FORBIDDEN_BUSINESS_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     yield
     reset_test_database()
 
@@ -213,11 +212,11 @@ def test_updated_at_trigger_maintains_value(db) -> None:
 # ============================================================ Test C + D
 def test_rerun_and_downgrade_roundtrip(db) -> None:
     upgrade(make_config(lock_mode="fail"), "head")  # C: rerun is a no-op
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
     downgrade(make_config(lock_mode="fail"), "base")  # D: full teardown
     assert current_revision() is None
     upgrade(make_config(lock_mode="fail"), "head")  # D: re-upgrade works
-    assert current_revision() == "0010_b1_6_ai_gateway"
+    assert current_revision() == "0011_p09_agent_tool_permission"
 
 
 # ============================================================ Security
