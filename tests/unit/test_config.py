@@ -26,7 +26,7 @@ SETTING_ENV_KEYS = (
     "AI_DEFAULT_PROVIDER",
     "AI_DEFAULT_MODEL",
     "AI_REQUEST_TIMEOUT_SECONDS",
-    "ENABLE_MIGRATIONS_ON_STARTUP",
+    "EXPECTED_ALEMBIC_REVISION",
 )
 
 
@@ -86,3 +86,34 @@ def test_settings_are_immutable_in_practice() -> None:
     assert isinstance(settings, Settings)
     with pytest.raises(ValidationError):
         settings.APP_ENV = "whatever"  # type: ignore[misc]
+
+
+# ------------------------------------------------------- schema governance
+
+
+def test_expected_revision_defaults_to_empty() -> None:
+    """Empty means "not injected"; readiness then fails closed."""
+    assert load_settings_from_env({}).EXPECTED_ALEMBIC_REVISION == ""
+
+
+def test_expected_revision_is_readable_from_the_environment() -> None:
+    settings = load_settings_from_env({"EXPECTED_ALEMBIC_REVISION": "0011_p09_agent_tool_permission"})
+    assert settings.EXPECTED_ALEMBIC_REVISION == "0011_p09_agent_tool_permission"
+
+
+def test_expected_revision_is_not_masked_as_a_secret() -> None:
+    """It is a public migration identity, so redaction must leave it visible."""
+    settings = load_settings_from_env({"EXPECTED_ALEMBIC_REVISION": "0011_p09_agent_tool_permission"})
+    snapshot = settings.redacted()
+    assert snapshot["EXPECTED_ALEMBIC_REVISION"] == "0011_p09_agent_tool_permission"
+
+
+def test_expected_revision_is_not_secret_typed() -> None:
+    assert "EXPECTED_ALEMBIC_REVISION" not in {
+        name for name in Settings.model_fields if "secret" in name.lower()
+    }
+
+
+def test_startup_migration_switch_no_longer_exists() -> None:
+    """D-PLAT-07.a: the startup migration switch is deleted, not merely disabled."""
+    assert "ENABLE_MIGRATIONS_ON_STARTUP" not in Settings.model_fields

@@ -8,6 +8,12 @@ Status: **DESIGN — STEP 1-A**（选型完成，**不实施**，STEP 1-B 执行
 
 它解决了 STEP 0 需要的最小问题：有序、幂等、校验和防篡改、事务性。已在 SQLite 与 PostgreSQL 16.15 上验证。
 
+> **[D-PLAT-07 注记 · 2026-09-20]** 本节描述的 legacy `.sql` runner **已不再是正式迁移入口**：
+> Alembic 为唯一正式 Schema migration 入口（`D-PLAT-07` = FROZEN）；应用启动时的 legacy
+> 调用被停用；runner 本体与 `migrations/*.sql` 保留只读。
+> 关联：`D-PLAT-07`（本文档 §1「现状（STEP 0）」）· 权威规范：`STEP1B_MIGRATION_IMPLEMENTATION_CONTRACT.md` §1 / §16。
+> 性质：状态更新 + 交叉引用。**不修改本文档既有结论。**
+
 ## 2. 为什么继续自研不合适
 
 | 问题 | 影响 | 严重度 |

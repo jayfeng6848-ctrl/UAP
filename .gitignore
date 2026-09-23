@@ -20,6 +20,9 @@ node_modules/
 dist/
 .vite/
 
+# Build artifacts (generated at image build time; never committed)
+config/_build_info.py
+
 # Tooling / OS
 .idea/
 .vscode/

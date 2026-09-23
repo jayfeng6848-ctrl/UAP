@@ -12,6 +12,9 @@ apps/           delivery (FastAPI api, worker, frontend)
    |
 agent/          agent runtime, registry, tools, memory, workflow
    |
+services/       use-case orchestration, transaction coordination,
+                business persistence access
+   |
 intelligence/   provider-agnostic AI gateway, router, embeddings, AI policy
    |
 core/           identity auth tenant space membership permission
@@ -19,6 +22,11 @@ core/           identity auth tenant space membership permission
    |
 infrastructure/ database cache queue storage logging monitoring
 ```
+
+`services/` depends on `core/` (contracts) and `infrastructure/`; `apps/`
+assembles it. `core/` never depends on `services/` and carries no persistence.
+Authoritative layer rules: `DEPENDENCY_RULES.md` §7 · decisions `D-PLAT-02` …
+`D-PLAT-06` in `PLATFORM_DECISION_LOG.md`.
 
 Domains sit beside this stack and depend on it:
 
@@ -60,8 +68,11 @@ module under `agent/` imports `sqlalchemy`, `psycopg` or `infrastructure`.
 ## Data
 
 - PostgreSQL is the primary datastore; connections are created lazily.
-- Migrations are ordered `.sql` files in `migrations/`, applied transactionally
-  with a `schema_migrations` checksum ledger (`scripts/migrate.py`).
+- **Schema migrations**: Alembic is the sole schema-change entry point
+  (`alembic.ini` + `migrations_alembic/`). The legacy `.sql` runner
+  (`migrations/`, `scripts/migrate.py`) is retained **read-only** for history and
+  is **not** an entry point; application startup never applies migrations.
+  Authoritative rules: `STEP1B_MIGRATION_IMPLEMENTATION_CONTRACT.md` §1 / §16.
 - Redis, queue and object storage exist as interfaces only in this phase.
 
 ## Observability
@@ -70,7 +81,10 @@ module under `agent/` imports `sqlalchemy`, `psycopg` or `infrastructure`.
   request_id, trace_id, user_id, tenant_id, space_id, event`.
 - Credentials are redacted by field name and by value pattern.
 - `GET /health` (liveness) never performs I/O; `GET /ready` (readiness) probes
-  PostgreSQL. The AI gateway is **not** part of readiness.
+  PostgreSQL **and gates on database schema state**: the database revision must
+  equal the build-time expected revision, otherwise readiness is `503`. Missing,
+  behind **or ahead** schema is not ready. The AI gateway is **not** part of
+  readiness. See `D-PLAT-08` and `docs/api/README.md`.
 
 ## Configuration
 

@@ -26,7 +26,7 @@ intelligence/    provider-agnostic AI gateway, router, embeddings, AI policy
 agent/           runtime, registry, tools, memory, workflow (interfaces only)
 domains/         family | company | business | entertainment (manifests only)
 infrastructure/  database, cache, queue, storage, logging, monitoring
-migrations/      ordered .sql files applied by the built-in runner
+migrations/      legacy .sql baseline (read-only; Alembic is the schema entry point)
 tests/           unit integration contract e2e security concurrency recovery
                  + architecture guard
 config/          environment-driven settings (no secrets in code)
@@ -45,9 +45,13 @@ export DATABASE_URL=postgresql+psycopg://uap:uap@localhost:5432/uap
 # Option B: docker (api + postgres)
 docker compose up --build
 
-python scripts/migrate.py      # apply migrations
+alembic upgrade head           # apply schema migrations (sole entry point)
 uvicorn apps.api.main:app --reload
 ```
+
+> The legacy `python scripts/migrate.py` is historical only (retained read-only)
+> and is **not** a schema entry point; application startup never applies
+> migrations. See `docs/architecture/STEP1B_MIGRATION_IMPLEMENTATION_CONTRACT.md`.
 
 Endpoints: `GET /health` (liveness), `GET /ready` (readiness),
 `GET /api/v1/meta`, interactive docs at `/docs`.

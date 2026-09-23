@@ -149,6 +149,10 @@ Runner B: BEGIN → LOCK(阻塞/失败) → ...
 - 正式库从 0 业务表起步：B1 起 Alembic 是**唯一建表入口**
 - 一个发布周期后旧 runner 下线（README 标注 deprecation）
 
+> **[D-PLAT-07 注记 · 2026-09-23]** 「旧 runner 下线」条款的**启动入口部分**已执行完毕：应用启动不再调用 legacy runner（`ENABLE_MIGRATIONS_ON_STARTUP` 与启动分支已删除），runtime 的 schema 权威改为构建期从 Alembic 图推导的工件 + `/ready` 严格相等门。
+> 关联：D-PLAT-07.a（本文档 §16「一个发布周期后旧 runner 下线」与「只读保留」两条）
+> 性质：状态更新 + 交叉引用。**不修改本文档既有结论** —— 文件与本体**仍全部保留**（`migrations/*.sql` · `scripts/migrate.py` · `scripts/doctor.py` · `infrastructure/database/migration.py` 及其测试），删除其文件的决定**仍未作出**；运维契约见 `docs/operations/DEPLOYMENT_AND_RECOVERY.md`（D-R-3）。
+
 ---
 
 ## 附：B1-0 落地物

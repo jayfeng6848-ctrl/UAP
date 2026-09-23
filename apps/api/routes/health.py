@@ -11,9 +11,14 @@ from typing import Callable
 
 from fastapi import APIRouter, Response, status
 
+from config.build_info import resolve_expected_revision
 from config.settings import get_settings
 from infrastructure.database.config import DatabaseConfig
-from infrastructure.database.health import ComponentHealth, check_database
+from infrastructure.database.health import (
+    ComponentHealth,
+    check_database,
+    check_migration_state,
+)
 
 router = APIRouter(tags=["health"])
 
@@ -25,10 +30,20 @@ OPTIONAL_COMPONENTS: tuple[str, ...] = ("cache", "queue", "ai_gateway")
 def collect_components() -> list[ComponentHealth]:
     """Probe every component that participates in readiness.
 
+    Two critical components are reported: ``database`` (connectivity) and
+    ``migration`` (schema revision must equal the build-time authority).
+
     Isolated in one function so tests can replace it wholesale.
     """
     settings = get_settings()
-    return [check_database(DatabaseConfig.from_settings(settings))]
+    config = DatabaseConfig.from_settings(settings)
+    expected_revision, source = resolve_expected_revision(
+        settings.EXPECTED_ALEMBIC_REVISION
+    )
+    return [
+        check_database(config),
+        check_migration_state(expected_revision, source=source, config=config),
+    ]
 
 
 def build_readiness_report(components: list[ComponentHealth]) -> tuple[bool, dict]:
@@ -70,6 +85,11 @@ def health() -> dict:
 @router.get("/ready", summary="Readiness probe")
 def ready(response: Response) -> dict:
     """Return 200 when the platform can serve traffic, 503 otherwise.
+
+    Readiness covers connectivity **and** schema state: the database Alembic
+    revision must strictly equal the expected revision (a build-time artifact
+    that runtime configuration cannot override). Missing, behind **or ahead**
+    schema is not ready.
 
     The AI gateway is intentionally NOT part of readiness: an unavailable model
     provider must not mark UAP Core as dead.

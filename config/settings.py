@@ -65,8 +65,16 @@ class Settings(BaseSettings):
     AI_DEFAULT_MODEL: str = Field(default="none")
     AI_REQUEST_TIMEOUT_SECONDS: int = Field(default=30, ge=1, le=600)
 
-    # -------------------------------------------------------------- runtime
-    ENABLE_MIGRATIONS_ON_STARTUP: bool = Field(default=False)
+    # ------------------------------------------------------- schema governance
+    EXPECTED_ALEMBIC_REVISION: str = Field(
+        default="",
+        description=(
+            "Expected Alembic revision used by the /ready schema gate. "
+            "Built images read the build-time artifact (config/_build_info.py), which "
+            "this value can never override; it is a local development/test fallback. "
+            "Empty means readiness fails closed. Not a secret."
+        ),
+    )
 
     @field_validator("APP_ENV")
     @classmethod

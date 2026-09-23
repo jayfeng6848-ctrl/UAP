@@ -41,16 +41,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             }
         },
     )
-    if settings.ENABLE_MIGRATIONS_ON_STARTUP:
-        from infrastructure.database.migration import run_migrations
-        from infrastructure.database.session import get_engine
-
-        report = run_migrations(get_engine())
-        logger.info(
-            "migrations applied=%s skipped=%s",
-            report.applied,
-            report.skipped,
-        )
+    # Schema migrations are never applied at startup: Alembic is the sole schema
+    # entry point and readiness gates on the database already matching the
+    # build-time revision (D-PLAT-07 / D-PLAT-08 / D-PLAT-15).
     yield
     reset_engine()
     logger.info("uap.api.shutdown")
