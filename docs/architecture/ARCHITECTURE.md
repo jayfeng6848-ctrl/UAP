@@ -65,6 +65,46 @@ Agent ─▶ Policy ─▶ Tool ─▶ Service ─▶ Database
 An agent never touches the database. `tests/architecture` enforces that no
 module under `agent/` imports `sqlalchemy`, `psycopg` or `infrastructure`.
 
+## Authorization model
+
+Canonical authorization is **RBAC + ACL + Policy**, frozen by `D-AUTH-01`…`D-AUTH-25`
+in [`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md).
+
+**Decision registry**: `D-AUTH` total **25** = `FROZEN` **22** + `DEFERRED` **3** + `SUPERSEDED` **0**
+(`OQ` sequence: 22 = `FROZEN` 19 + `DEFERRED` 3; plus the non-OQ `D-AUTH-23` (GAP-11) and `D-AUTH-24` / `D-AUTH-25` (D-B14-08 conflict resolution, 2026-09-24); platform-level supersession = 1: `D-B14-08` → SUPERSEDED by `D-AUTH-05`).
+
+```text
+Subject (USER | ROLE | AGENT)
+   │
+   ├─ RBAC    baseline grant       (roles / role_permissions)
+   ├─ ACL     resource-specific    (resources / resource_permissions)
+   └─ Policy  contextual decision  (core/policy)
+        │
+        ▼
+   Resource ─▶ Action ─▶ Scope ─▶ Risk ─▶ { Execute | Approval } ─▶ Tool ─▶ Audit
+```
+
+Frozen properties:
+
+- **Agent is an independent authorization subject** (`D-AUTH-02`); migration 0007
+  already registers `user` / `role` / `agent` as ACL subject types.
+- **`DENY > ALLOW`**, deterministic, order-independent and auditable
+  (`D-AUTH-07`, inheriting `R2-D-14`).
+- **Fail closed**: every lookup failure yields `DENY` (`D-AUTH-12`).
+- **Scope** is `PLATFORM → TENANT → SPACE`; `RESOURCE` / `SELF` are predicates,
+  not stored grant scopes (`D-AUTH-06`).
+- **Risk** uses the four canonical tiers `LOW` / `MEDIUM` / `HIGH` / `CRITICAL`;
+  risk is neither a permission nor a decision (`D-AUTH-10`).
+- Authorization **contracts** live in `core/`; the deciding service belongs in
+  `services/` (`D-AUTH-16`), consistent with `D-PLAT-02` / `D-PLAT-03`.
+- `Authorization Decision Audit` is a **different record** from
+  `Tool Execution Audit` (`D-AUTH-15`).
+
+> Status: **design frozen — not implemented**. No authorization code, service or
+> schema exists yet and `services/` has not been created. See
+> [`AUTHORIZATION_PREP_REPORT.md`](./AUTHORIZATION_PREP_REPORT.md) and
+> [`AUTHORIZATION_ACCEPTANCE_MATRIX.md`](./AUTHORIZATION_ACCEPTANCE_MATRIX.md).
+
 ## Data
 
 - PostgreSQL is the primary datastore; connections are created lazily.

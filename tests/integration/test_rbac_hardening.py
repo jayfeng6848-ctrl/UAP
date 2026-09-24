@@ -40,7 +40,7 @@ if not database_reachable():
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     yield
     reset_test_database()
 

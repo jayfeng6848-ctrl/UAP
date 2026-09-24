@@ -101,6 +101,39 @@ for assembly, lifecycle and health checks). `domains/` never depends on
 Authoritative decisions: `D-PLAT-02` … `D-PLAT-06`, `D-PLAT-17` in
 [`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md).
 
+## 8. Authorization boundary
+
+Frozen by `D-AUTH-01`…`D-AUTH-25` (see
+[`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md)).
+
+Registry: `D-AUTH` total **25** = `FROZEN` **22** + `DEFERRED` **3** + `SUPERSEDED` **0**
+(`OQ` 22 = 19 + 3; plus the non-OQ `D-AUTH-23` (GAP-11) and `D-AUTH-24` / `D-AUTH-25` (D-B14-08 conflict resolution, 2026-09-24); platform-level supersession = 1: `D-B14-08` → SUPERSEDED by `D-AUTH-05`).
+
+```text
+Subject ──▶ Authorization Contract ──▶ (services) authorization decision
+                 ▲
+Agent ───────────┘   NEVER directly to Database / Infrastructure / services
+
+core/*           = authorization contracts, value objects, pure rules   (no I/O)
+services/*       = authorization decision orchestration + persistence
+infrastructure/* = persistence adapters only
+```
+
+Rules:
+
+- An agent reaches controlled capability **only** through the Authorization
+  Contract, the Policy Contract and the Tool Contract (`D-AUTH-16`, `D-PLAT-05`).
+- A **Tool must never bypass** the authorization service (`D-AUTH-09`).
+- A **Module must never create a second permission system** (`D-AUTH-21`).
+- Authorization failure must **never** become `ALLOW` (`D-AUTH-12`).
+- **No implicit resource-parent inheritance** (`D-AUTH-08`).
+- Authorization **contracts** stay in `core/`; **implementations** belong in
+  `services/` — `core ↛ services` (`G-2`) and `agent ↛ services` (`G-3`) hold.
+
+> Status: **design frozen — not implemented**. This round adds **no new guard**;
+> `G-1`…`G-9` are unchanged. Hardening these rules into guards requires a
+> separate, explicitly authorized change.
+
 ## Adding a rule
 
 Add the check to `tests/architecture/` in the same commit that introduces the

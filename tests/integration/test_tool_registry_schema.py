@@ -92,7 +92,7 @@ _FIXTURE_NOT_PUBLISHED = "fixture_note_published"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     yield
     reset_test_database()
 
@@ -243,14 +243,22 @@ def test_ts4_tool_versions_schema(db) -> None:
 
 
 def test_ts5_tool_permissions_schema(db) -> None:
-    """TS5 — tool_permissions has exactly 7 frozen columns and NO updated_at."""
+    """TS5 — the 0008 columns are frozen, SC-2 adds three, and there is no updated_at.
+
+    ``SC-2`` of the STAGE 2 authorization change set adds the structured
+    tool-grant columns ``resource_type`` / ``action`` / ``scope``. The seven
+    original B1-5 columns are unchanged, and ``updated_at`` is still absent.
+    """
     cols = {r[0] for r in _rows(
         "SELECT column_name FROM information_schema.columns WHERE table_name='tool_permissions'"
     )}
-    assert cols == {
+    frozen_b15 = {
         "id", "tool_id", "version_id", "permission_id", "effect", "conditions", "created_at",
     }
-    assert len(cols) == 7
+    added_by_sc2 = {"resource_type", "action", "scope"}
+    assert frozen_b15 <= cols
+    assert cols == frozen_b15 | added_by_sc2
+    assert len(cols) == 10
     assert "updated_at" not in cols
 
 
@@ -657,7 +665,7 @@ def test_tv4_trigger_is_the_enforcing_object(db) -> None:
 # ========================================================= TM1-TM8 (migration)
 def test_tm1_upgrade_0007_to_0008(db) -> None:
     """TM1 — 0007 -> 0008 upgrade succeeds."""
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
 
 
 def test_tm2_downgrade_0008_to_0007(db) -> None:
@@ -736,7 +744,7 @@ def test_tm7_b1_4_objects_intact(db) -> None:
 
 def test_tm8_head_and_trigger_set(db) -> None:
     """TM8 — head is 0009 and B1-5 introduces exactly two triggers."""
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     rows = _rows(
         "SELECT tgname, tgtype FROM pg_trigger WHERE NOT tgisinternal "
         "AND tgrelid::regclass::text = ANY(:t)", t=list(B15_TABLES)

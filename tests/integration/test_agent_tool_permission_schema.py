@@ -168,7 +168,7 @@ _FIXTURE_NOT_PUBLISHED = "draft"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     yield
     reset_test_database()
 
@@ -231,11 +231,17 @@ def _fresh_space(conn, tenant_id, key: str = "p09space") -> str:
 
 
 def _fresh_permission(conn, key: str = "agent.invoke") -> str:
-    """`permissions` is a P04 table with zero rows (seed is P13); a fixture row is required."""
+    """`permissions` is a P04 table with zero rows (seed is P13); a fixture row is required.
+
+    The action literal is ``'execute'`` because ``SC-1`` (``D-AUTH-05`` via
+    ``0012``) constrains ``permissions.action`` to the canonical vocabulary.
+    The original fixture value ``'invoke'`` predates that vocabulary
+    (§24 classification: historical compatibility) and no test asserts it.
+    """
     return conn.execute(
         sa.text(
             "INSERT INTO permissions (key, action, description) "
-            "VALUES (:k, 'invoke', 'fixture') RETURNING id"
+            "VALUES (:k, 'execute', 'fixture') RETURNING id"
         ),
         {"k": key},
     ).scalar()
@@ -320,7 +326,7 @@ def test_t19_revision_identity() -> None:
     assert 'revision = "0011_p09_agent_tool_permission"' in source
     assert 'down_revision = "0010_b1_6_ai_gateway"' in source
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert script.get_heads() == ["0011_p09_agent_tool_permission"]
+    assert script.get_heads() == ["0012_authz_enforcement"]
 
 
 def test_t20_tables_exist(db) -> None:
@@ -959,7 +965,7 @@ def test_t33_downgrade_leaves_zero_residual() -> None:
     reset_test_database()
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
 
     downgrade(cfg, "0010_b1_6_ai_gateway")
     assert current_revision() == "0010_b1_6_ai_gateway"
@@ -997,5 +1003,5 @@ def test_t33_downgrade_leaves_zero_residual() -> None:
 
     # re-upgrade roundtrip
     upgrade(cfg, "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     reset_test_database()

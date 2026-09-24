@@ -66,8 +66,8 @@ if not database_reachable():
     )
 
 REVISION = "0010_b1_6_ai_gateway"
-# 当前链 head（P09 / 0011）——head 断言用；REVISION 仅用于 B1-6 自身身份校验。
-HEAD_REVISION = "0011_p09_agent_tool_permission"
+# 当前链 head（STAGE 2 / 0012）——head 断言用；REVISION 仅用于 B1-6 自身身份校验。
+HEAD_REVISION = "0012_authz_enforcement"
 PREVIOUS_REVISION = "0009_timestamp_precision"
 MIGRATION_FILE = ROOT / "migrations_alembic" / "versions" / f"{REVISION}.py"
 PARENT = "ai_request_logs"
@@ -866,7 +866,7 @@ def test_ag3_forbidden_sets_synced(db) -> None:
     # 平台 guard 的 head 常量同步
     guard = pathlib.Path("tests/integration/test_platform_timestamp_precision.py").read_text(
         encoding="utf-8")
-    assert 'CURRENT_HEAD = "0011_p09_agent_tool_permission"' in guard
+    assert 'CURRENT_HEAD = "0012_authz_enforcement"' in guard
 
 
 def test_ag4_repository_safety(db) -> None:
@@ -998,17 +998,22 @@ def test_am4_roundtrip_object_set_stable(db) -> None:
 
 
 def test_am5_chain_shape() -> None:
-    """AM5 — 链长 = 11（0001…0011）· 唯一 head = 0011 · 无重复/缺失/分支。"""
+    """AM5 — 链长 = 12（0001…0012）· 唯一 head = 0012 · 无重复/缺失/分支。"""
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
     heads = script.get_heads()
     assert heads == [HEAD_REVISION], heads
     revisions = list(script.walk_revisions())
-    assert len(revisions) == 11, [r.revision for r in revisions]
+    assert len(revisions) == 12, [r.revision for r in revisions]
     ids = [r.revision for r in revisions]
     assert len(ids) == len(set(ids))
     assert ids[0] == HEAD_REVISION and ids[-1] == "0001_baseline"
     revision = next(r for r in revisions if r.revision == HEAD_REVISION)
-    assert revision.down_revision == REVISION          # 0011 → 0010
+    # B1-6 的直接后继必须仍指向 0010（不随 head 推进而失效——原断言写死了
+    # ``head.down_revision == REVISION``，在 head 为 0011 时成立、0012 时失效，
+    # 属 §24 分类 2「Test Expectation Defect」）
+    successor = next(r for r in revisions if r.down_revision == REVISION)
+    assert successor.revision == "0011_p09_agent_tool_permission"
+    assert revision.down_revision == "0011_p09_agent_tool_permission"   # 0012 → 0011
     parent = next(r for r in revisions if r.revision == REVISION)
     assert parent.down_revision == PREVIOUS_REVISION   # 0010 → 0009
     # Alembic 将未声明值规范化为空 set（等价于 None）；depends_on 由 AM1 的模块级断言覆盖

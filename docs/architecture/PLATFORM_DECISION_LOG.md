@@ -570,5 +570,432 @@ FROZEN 条目数 = 17   （`01`…`12` 于 2026-09-20 经 Human 明确确认置�
 
 ---
 
+---
+
+# Authorization Canonical Model — `D-AUTH-01` … `D-AUTH-25`
+
+> **来源**：`STAGE 2 — AUTHORIZATION / ACL / POLICY` 的 PREP（`AUTHORIZATION_PREP_REPORT.md`）与
+> Decision Resolution（`AUTHORIZATION_DECISION_RESOLUTION.md`）；OQ 编号 `OQ-A01`…`OQ-A22`。
+> **Human 于 2026-09-23 逐项明确裁定**：**19 项 `FROZEN` + 3 项 `DEFERRED`**。
+> **追加（2026-09-23）**：**`D-AUTH-23`** 来自 **`GAP-11`**（Implementation Gap，**非** OQ），单条 Human Decision **A — Legacy Opaque** ⇒ `FROZEN`。
+> **追加（2026-09-24）**：**`D-AUTH-24`** = `D-B14-08` 由 `D-AUTH-05` **取代**（保留 `SC-1b`）；
+> **`D-AUTH-25`** = **Action canonical 形式 = 小写**。二者均**非** OQ，逐条正文见本区段末尾。
+> ⇒ **`D-AUTH` 条目共 25 条**：**`FROZEN` 22 + `DEFERRED` 3 + `SUPERSEDED` 0**（`OQ` 口径仍为 **19 + 3 = 22**）；
+> **平台级 supersession = 1**（`D-B14-08`，登记于 `D-AUTH-24`）。
+> **本组条目不产生任何实施授权**（Charter §6）；`D-PLAT-01`…`D-PLAT-17` 与全部既有冻结决策**保持原状**，
+> 本组**不构成**对任何既有决策的 silent replacement（`R2-D-14` / `R2-D-15` / `R4` / ACL 主体白名单 / P09 均被显式继承）。
+> `D-B14-08` 的取代是**显式、经 Human Decision 并留档**的 supersession，**非** silent replacement。
+
+## 总表
+
+| ID | OQ | 主题 | 状态 | 实施阶段 |
+|---|---|---|---|---|
+| `D-AUTH-01` | A01 | 组合模式 = RBAC + ACL + Policy | **FROZEN** | Authorization Implementation |
+| `D-AUTH-02` | A02 | Agent = 独立授权主体 | **FROZEN** | Authorization Implementation |
+| `D-AUTH-03` | A03 | 显式 Delegation Scope / Lifecycle | **DEFERRED** | Agent Runtime |
+| `D-AUTH-04` | A04 | Resource Canonical Model | **FROZEN** | Authorization Implementation |
+| `D-AUTH-05` | A05 | Canonical Action Vocabulary（12 项） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-06` | A06 | Scope Model（PLATFORM/TENANT/SPACE） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-07` | A07 | `DENY > ALLOW` | **FROZEN** | Authorization Implementation |
+| `D-AUTH-08` | A08 | Inheritance = Explicit and Downward | **FROZEN** | Authorization Implementation |
+| `D-AUTH-09` | A09 | Tool Authorization Boundary | **FROZEN** | Tool Runtime / Authorization Implementation |
+| `D-AUTH-10` | A10 | 四档 Risk Classification | **FROZEN** | Authorization Implementation |
+| `D-AUTH-11` | A11 | Approval = 静态 OR 策略 | **FROZEN** | Tool Runtime（persistence） |
+| `D-AUTH-12` | A12 | FAIL CLOSED / DEFAULT DENY | **FROZEN** | Authorization Implementation |
+| `D-AUTH-13` | A13 | Authorization Cache | **DEFERRED** | Tool Runtime |
+| `D-AUTH-14` | A14 | Decision States（ALLOW/DENY/REQUIRES_APPROVAL） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-15` | A15 | Authorization Audit 设计边界 | **FROZEN** | Authorization Decision Audit（persistence → P10） |
+| `D-AUTH-16` | A16 | Service Placement（core/application/infrastructure） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-17` | A17 | Schema Impact（本冻结不产生 schema 变更） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-18` | A18 | Canonical Subject Vocabulary | **FROZEN** | Authorization Implementation |
+| `D-AUTH-19` | A19 | Agent Version Semantics（单调整数 revision） | **FROZEN** | Authorization Implementation |
+| `D-AUTH-20` | A20 | ACL Uniqueness Semantics | **FROZEN** | Authorization Implementation |
+| `D-AUTH-21` | A21 | Memory / Workflow Authorization | **DEFERRED** | Agent Runtime |
+| `D-AUTH-22` | A22 | Audit / Event ID = UUIDv7 | **FROZEN** | P10（persistence） |
+| `D-AUTH-23` | **—**（`GAP-11`） | `agent_permissions.resource_scope` = **Legacy Opaque**（`ND-A` = 不追加 `<> ''`） | **FROZEN** | Authorization Implementation（契约 / 测试层，**无** schema 动作） |
+| `D-AUTH-24` | **—**（`D-B14-08` 冲突） | `D-B14-08` → **`SUPERSEDED`** by `D-AUTH-05`；`SC-1b` **保留** | **FROZEN** | Authorization Implementation（已实施于 `0012`） |
+| `D-AUTH-25` | **—**（`D-B14-08` 冲突） | Action **canonical 存储形 = 小写**；归一 = NFKC → strip → casefold | **FROZEN** | Authorization Implementation（已实施） |
+
+---
+
+# D-AUTH-01 — Authorization 组合模式：RBAC + ACL + Policy
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A01`） |
+| **决策** | 采用 **RBAC + ACL + Policy** 三层。职责冻结：`RBAC` = Role-based baseline grant · `ACL` = Resource-specific grant · `Policy` = Contextual / conditional decision。 |
+| **理由 / 依据** | `roles`/`role_permissions`（0005）与 `resources`/`acl_subject_types`/`resource_permissions`（0007）**已全部落库并冻结**，废弃任一层均为破坏性变更；`role_permissions.conditions` 已存在（`R2-D-15` 定为 storage-only）；`core/permission` 与 `core/policy` 双契约已在位。 |
+| **影响范围** | `core/permission`（RBAC+ACL 合并）· `core/policy`（条件/风险判定）· `services/authorization/` |
+| **实施阶段** | Authorization Implementation（`services/` 包须先建立，`D-PLAT-01`） |
+| **禁止** | 三层**不得重复实现同一授权逻辑**；`conditions` 归属**唯一**（归 `core/policy`）；不得新增第四套授权机制 |
+
+---
+
+# D-AUTH-02 — Agent = 独立授权主体
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A02`） |
+| **决策** | **Agent = Independent Authorization Subject**。Agent 可拥有自身 Permission、自身 Policy applicability、自身 Tool authorization、自身 lifecycle/status。**Agent 不等同于创建它的 User。** |
+| **理由 / 依据** | `acl_subject_types` 硬白名单**已允许 `agent`**（`ck_acl_subject_types_whitelist` + `tg_acl_subject_types_protect`，0007）；`agent_permissions`（`effect`/`resource_scope`/`conditions`）与 `agents.max_risk_level` 已落库（0011）。 |
+| **影响范围** | `core/permission.Subject`（须可表达 agent 主体）· `agents`/`agent_permissions`（沿用，不新建） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得把 Agent 的授权等同于其 `owner_id` 指向的 User；不得移除 `acl_subject_types` 的 `agent` 白名单项 |
+
+---
+
+# D-AUTH-03 — 显式 Delegation Scope / Lifecycle ｛`DEFERRED`｝
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `DEFERRED`（2026-09-23 · `OQ-A03`） |
+| **已冻结的基础语义** | ① Agent = Independent Subject；② User = Actor / Delegator Context（适用时）；③ 执行记录**必须能区分** `Agent` / `Actor` / `Delegator`；④ **禁止** `Agent permission = User permission automatically`；⑤ **禁止** `Agent authority > effective authority of delegating user`。 |
+| **Owner Phase** | **Agent Runtime** |
+| **理由** | `tool_executions` 已同时具备 `agent_id` 与 `actor_id`（0011），基础语义可立即冻结；而 `grant`/`revoke`/`expiry`/`delegation-specific scope` 需 delegation 载体（**当前不存在**），且与 Agent Runtime 的生命周期设计耦合。 |
+| **Exit Condition** | Agent Runtime PREP 完成，且 delegation 载体形态（新表/新列）经 Human 单独授权后，冻结完整 delegation contract。 |
+| **影响范围** | `core/policy.PolicyContext`（现仅单 `actor_id`，需扩展双主体）· 未来 delegation 载体 |
+| **禁止** | 在 Exit Condition 满足前**不得**创建 delegation 表/列；**不得**使 Agent 权限超出委派 User 的有效授权 |
+
+---
+
+# D-AUTH-04 — Resource Canonical Model
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A04`） |
+| **决策** | Authorization Resource 的 canonical 概念**至少包括**：`resource_type` · `resource_id` · `tenant` · `space` · `classification` · `owner` · `lifecycle`。**当前不增加** `parent_id` / `resource_relations`（除非未来出现明确业务需求）。Owner 当前**保持 `User`** 为 canonical owner 类型。 |
+| **理由 / 依据** | `resources` 表已具备全部 7 项（`resource_type` 正则 · `tenant_id` NN · `space_id` · `classification` 四档 · `owner_id`→users · `status`/`archived_at`/`deleted_at`），0011 实测；`resource_relations` 在 0011 **不存在**。 |
+| **影响范围** | `core/resource.ResourceRef`（沿用）· `resources`（**不新增列**） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | **不因 Agent 成为 Subject 就自动允许 Agent 成为 Resource Owner**；不得创建 `resources.parent_id` / `resource_relations` |
+
+---
+
+# D-AUTH-05 — Canonical Action Vocabulary
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A05`） |
+| **决策** | 平台基础 Action vocabulary = `READ` `LIST` `CREATE` `UPDATE` `DELETE` `EXECUTE` `APPROVE` `REJECT` `PUBLISH` `EXPORT` `SHARE` `ADMIN`。**Core Action vocabulary = platform canonical**；Module 可提出扩展 Action，但必须 **Registered / Discoverable / Auditable / Policy-compatible**；**不得**通过任意自由字符串绕过统一授权语义。后续实现阶段**应考虑**对 canonical action 集合增加数据层约束。 |
+| **理由 / 依据** | 实测三处 action 均为自由 text 且无 CHECK（`permissions.action` · `resource_permissions.action` · 契约 `Action.name`），构成"拼写变体绕过授权"面。 |
+| **影响范围** | `permissions.action` · `resource_permissions.action`（未来 CHECK，见 `D-AUTH-17`）· `core/permission.Action` |
+| **实施阶段** | Authorization Implementation（数据层约束须在 Implementation Contract 中细化） |
+| **禁止** | Module 不得自由产生不可审计的 action 字符串；不得建立第二套 Action 词表 |
+
+---
+
+# D-AUTH-06 — Scope Model
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A06`） |
+| **决策** | canonical grant scopes = `PLATFORM` → `TENANT` → `SPACE`（**层级**）。**暂不把 `RESOURCE` / `SELF` 作为独立的 canonical grant scope 存储类型**；二者在需要时作为 **Resource / Context predicate** 表达。 |
+| **理由 / 依据** | `roles.scope CHECK IN (PLATFORM,TENANT,SPACE)` + `tg_roles_scope_shape` + 3 个部分唯一索引（`uq_roles_platform`/`uq_roles_tenant`/`uq_roles_space`）已在 DB 强制，0011 实测。 |
+| **影响范围** | `roles.scope`（**沿用，不扩枚举**）· `core/resource.ResourceScope` · 未来判定谓词 |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得新增第 4/第 5 个 canonical grant scope；不得把 `SELF` 误作 Scope 存储（它是 Context predicate） |
+
+---
+
+# D-AUTH-07 — `DENY > ALLOW`
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A07`） |
+| **决策** | **正式继承既有冻结 `R2-D-14`：`DENY > ALLOW`**。授权结果必须 **Deterministic** · **Order-independent** · **Auditable**；**不得**因 evaluation order 不同而产生不同结果。 |
+| **理由 / 依据** | `R2-D-14`（FROZEN SECURITY INVARIANT，`STEP1B_ACL_STRATEGY.md §9`）· `ER_MODEL.md:221`（ACL deny 优先于 RBAC 继承的 allow）· `core/policy.combine()`「Any denial wins」· 平台 default-deny 方向。 |
+| **影响范围** | `core/permission`（合并算法）· `core/policy`（`combine`） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | **本条目不是新决策**，而是**确认继承**；不得解释为对 `R2-D-14` 的修改。如需变更须走 **New Supersession Decision** |
+
+---
+
+# D-AUTH-08 — Inheritance = Explicit and Downward
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A08`） |
+| **决策** | `Inheritance = Explicit and Downward`。允许 `TENANT → SPACE → Resource Context`；**不允许**通过不存在的 Resource Parent Tree 自动继承。特别规定 **No implicit resource-parent inheritance**。`parent_id` / `resource_relations` 均**保持未采用**。**Explicit Deny 必须参与最终授权计算。** |
+| **理由 / 依据** | `roles` 三层层级已由 DB 强制；`resource_permissions.inherited` 列存在但**无 parent 资源**（`resources` 无 parent 列，`resource_relations` 不存在）。 |
+| **影响范围** | `core/permission`（继承合并）· `core/membership` · `resource_permissions.inherited`（语义：**非** parent 继承） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得实现隐式资源父级继承；不得引入 `parent_id` / `resource_relations` |
+
+---
+
+# D-AUTH-09 — Tool Authorization Boundary
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A09`） |
+| **决策** | **Tool 是唯一受控执行出口**。链路冻结：`Agent → Tool Authorization → Resource Authorization → Policy → Execution`。**Tool Permission 与 Resource Permission 不合并成同一个概念**。未来 Tool Authorization **必须能结构化表达** `Tool + Action/Capability + Scope + Resource Context`。具体 schema structure 属后续 **Implementation Contract**。 |
+| **理由 / 依据** | `agent/tools/interfaces.py` docstring「A tool is the only path from an agent to a service」；`tools`/`tool_versions`/`tool_permissions` 已落库（0008）；`tool_permissions` **当前无** resource/action/scope 列（需结构化，见 `D-AUTH-17`）。 |
+| **影响范围** | `agent/tools`（执行前须携带授权决策）· `tool_permissions`（未来结构化增列）· `services/authorization` |
+| **实施阶段** | Tool Runtime / Authorization Implementation |
+| **禁止** | **不得让 Tool 自己绕过 Authorization Service**；不得让 Tool 自实现授权逻辑 |
+
+---
+
+# D-AUTH-10 — 四档 Risk Classification
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A10`） |
+| **决策** | `LOW` / `MEDIUM` / `HIGH` / `CRITICAL` 为平台 **canonical Risk Classification**。数值 `0.0 ~ 1.0` **不得**成为外部 canonical authorization vocabulary；如未来内部需要风险评分，可作为 **internal signal**。**`Risk ≠ Permission`** 且 **`Risk ≠ Authorization Decision`**。 |
+| **理由 / 依据** | DB 三处四档 CHECK 已落库并冻结：`ck_tools_risk_level` · `ck_agents_max_risk_level` · `tool_executions.risk_level`（0011 实测）；契约 `core/policy.RiskPolicy.score() -> float[0,1]` 为唯一异形方。 |
+| **影响范围** | `core/policy.RiskPolicy`（`score` 降为可选内部信号）· `tools`/`agents`/`tool_executions`（**沿用**） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得把数值评分作为对外的授权词表；不得把 Risk 与 Permission/Decision 混为一谈 |
+
+---
+
+# D-AUTH-11 — Approval = 静态 OR 策略
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A11`） |
+| **决策** | `approval_required = Static Tool Requirement OR Dynamic Policy Requirement`（**逻辑或**；任一成立即要求人工审批）。**审批不是 Permission；审批结果不等同于 `ALLOW`。** 审批 persistence carrier：**`DEFERRED TO TOOL RUNTIME / P10 dependency`**（**不视为新 OQ、不另增编号**）。 |
+| **理由 / 依据** | `tools.approval_required boolean NOT NULL` 已落库（0008，静态侧在位）；`core/permission.Decision` 与 `tool_executions.status` 均无"待审批"态（三处缺承载）。 |
+| **影响范围** | `tools.approval_required`（沿用为静态下限）· `core/policy`（动态侧）· 未来审批载体（**本轮不创建**） |
+| **实施阶段** | Tool Runtime（persistence carrier） |
+| **禁止** | 本轮**不得创建** `approval_requests` 等数据库对象；**不得**把审批结果直接视为 `ALLOW` |
+
+---
+
+# D-AUTH-12 — FAIL CLOSED / DEFAULT DENY
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A12`） |
+| **决策** | 统一 **FAIL CLOSED / DEFAULT DENY**。以下情况**不得自动 ALLOW**，最终行为一律 **`DENY`**：`Authorization Service unavailable` · `Policy lookup failure` · `Permission lookup failure` · `Unknown subject` · `Unknown resource` · `Unknown action` · `Expired grant` · `Revoked grant`。 |
+| **理由 / 依据** | 多重既有冻结先例：`R3-D-07`/`R4`（平台级无 effective 权限 ⇒ DENY）· `R5`（user inactive ⇒ 永久 DENY）· `core/permission.DENY`/`default_decision()` · `combine()` any-deny-wins · `core/permission` docstring。 |
+| **影响范围** | `core/permission` · `core/policy` · `services/authorization`（异常处理路径） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 任何失败分支**不得**降级为 ALLOW；不得引入"只读放行"式降级 |
+
+---
+
+# D-AUTH-13 — Authorization Cache ｛`DEFERRED`｝
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `DEFERRED`（2026-09-23 · `OQ-A13`） |
+| **当前冻结事实** | **`No Authorization Cache`**；**不得为性能提前实现**。 |
+| **Owner Phase** | **Tool Runtime**（需结合真实 Runtime traffic model 再冻结具体方案） |
+| **未来约束（已冻结）** | 若允许研究 bounded cache，**必须**满足：`No Fail Open` · `Bounded TTL` · `Explicit Revocation Invalidation` · `No stale ALLOW after security-critical revoke`。 |
+| **Exit Condition** | Tool Runtime PREP 提供真实流量模型与失效路径分析，并经 Human 授权后冻结具体 cache 方案。 |
+| **影响范围** | `infrastructure/cache` · `services/authorization` |
+| **禁止** | 在 Exit Condition 满足前**不得**实现任何授权缓存；**绝对禁止 fail-open** |
+
+---
+
+# D-AUTH-14 — Decision States
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A14`） |
+| **决策** | Authorization Decision 的 canonical states = **`ALLOW`** / **`DENY`** / **`REQUIRES_APPROVAL`**。其中 **`REQUIRES_APPROVAL` 不是最终 Permission Grant**；它表示 `Policy / Risk ⇒ Action cannot execute yet`，**必须**经过批准流程后才能进入实际执行。 |
+| **理由 / 依据** | §22 要求三值结果；现 `Decision(allowed: bool)` 无三值承载（三处契约均缺），需扩展为 `effect` 枚举并补齐 `subject`/`delegator`/`action`/`resource`/`scope`/`context`/`reason`/`policy_version`。 |
+| **影响范围** | `core/permission.Decision` · `agent/runtime.AgentRunResult` · 调用方（Agent/Tool/Module） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | **任何调用方不得把 `REQUIRES_APPROVAL` 当作可继续执行** |
+
+---
+
+# D-AUTH-15 — Authorization Audit 设计边界
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A15`） |
+| **决策** | **`Authorization Decision Audit ≠ Tool Execution Audit`**。Authorization Audit **至少**需能表达：`subject` · `delegator / actor context` · `tenant` · `space` · `resource` · `action` · `decision` · `reason` · `policy` · `risk` · `approval` · `timestamp`。**当前 Audit Persistence：`DEFERRED TO P10`。** |
+| **理由 / 依据** | `core/audit.AuditEvent` 现缺 `subject`/`delegator`/`decision`/`reason`/`policy`/`risk`/`approval` 七类字段；`events` 与 `audit_logs` **在 0011 均不存在**（属 P10）。 |
+| **影响范围** | `core/audit.AuditEvent`（契约扩字段）· 未来 `audit_logs`（P10） |
+| **实施阶段** | 设计边界：Authorization Implementation（契约）；persistence：**P10** |
+| **禁止** | **本轮不得创建 `events` / `audit_logs`**；不得把授权审计与工具执行审计合并为同一载体 |
+
+---
+
+# D-AUTH-16 — Service Placement
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A16`） |
+| **决策** | 分层冻结：**`Core`** = Authorization contracts / value objects / **pure rules**；**`Application / Domain service`** = Authorization decision orchestration；**`Infrastructure`** = Persistence / adapter / external integration。 |
+| **理由 / 依据** | `D-PLAT-02`（core = 契约与基础抽象，不承载持久化）· `D-PLAT-03`（services = 唯一业务持久化承载层）· `D-PLAT-05`（agent 经 Policy/Tool 契约进入）· 硬门 `G-1`/`G-2`/`G-3`。 |
+| **影响范围** | `core/{permission,policy,resource,audit}`（契约）· `services/authorization/`（实现，包**尚不存在**，须先建立）· `infrastructure`（适配） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | **禁止** `Core → Database` · `Core → Services` · `Agent → Database` · `Agent → Infrastructure`。Agent 只能经 `Authorization Contract + Policy Contract + Tool Contract` 访问受控能力 |
+
+---
+
+# D-AUTH-17 — Schema Impact（本冻结不产生 schema 变更）
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A17`） |
+| **决策** | 本次 Decision Freeze **不产生任何 schema modification**。未来 Authorization Implementation **允许研究**的必要方向：① **Canonical Action enforcement**；② **Structured Tool Permission representation**。当前**明确不采用**：`resources.parent_id` · `resource_relations` · **ACL unique-key redesign**。 |
+| **理由 / 依据** | `D-AUTH-04`/`D-AUTH-08` 判定不引入 parent；`D-AUTH-20` 判定保持 ACL 唯一键；`D-AUTH-05`/`D-AUTH-09` 指出 action 约束与 tool 结构化是唯二必要方向。 |
+| **影响范围** | `migrations_alembic/`（**本轮 0**）· 未来 Implementation Contract |
+| **实施阶段** | Authorization Implementation（须经独立 Implementation Contract + Authorization） |
+| **禁止** | **不修改 `0010` / `0011`**；**不得创建 `0012`**；本轮 **New Migration = 0**、`DDL`/`DML` 均未授权 |
+
+---
+
+# D-AUTH-18 — Canonical Subject Vocabulary
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A18`） |
+| **决策** | Canonical **Authorization Subject Types** = **`USER`** / **`ROLE`** / **`AGENT`**。并明确 **`Authorization Subject Type ≠ Identity Kind ≠ Identity Provider`**：`identities.provider` 属 **Identity / Authentication Provider** 语义；`acl_subject_types` 属 **Authorization Subject** 语义。三套历史词汇**不得继续作为同义词使用**。 |
+| **理由 / 依据** | `acl_subject_types` 硬白名单 `CHECK (key IN ('user','role','agent'))`（0007，0011 实测）；`core/identity.IDENTITY_KINDS = (user, service, device_subject)`；`identities.provider CHECK IN (local,oidc,saml,device,service)` —— 三套词汇交集不重合。 |
+| **影响范围** | `core/identity`（Identity 域词汇）· `acl_subject_types`（Authorization 域词汇）· `core/permission.Subject` |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得把 Identity Provider 值当作授权主体类型；不得移除 `acl_subject_types` 白名单（该表受 `tg_acl_subject_types_protect` 保护） |
+
+---
+
+# D-AUTH-19 — Agent Version Semantics
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A19`） |
+| **决策** | **`Runtime Version Resolution = Monotonic Integer Revision`**（`1, 2, 3, …`），用于 **immutable published version / runtime resolution / rollback·reference**。如未来需要 semantic version，可作为 **display / release metadata**。**不得让 `runtime identity = display version string` 混在一起。** |
+| **理由 / 依据** | DB `agent_versions.version integer NOT NULL` + `uq_agent_versions` + `checksum`；`agents.current_version_id` 已以**版本 ID（不可变引用）**解析版本；契约 `AgentDescriptor.version: str = "0.1.0"` 为唯一异形方。 |
+| **影响范围** | `agent/registry.AgentDescriptor`（`version` 语义须改为 revision 或显式 `version_id`）· `agent_versions`（**沿用，不改**） |
+| **实施阶段** | Authorization Implementation / Agent Runtime |
+| **禁止** | 不得把 display 字符串作为 runtime identity；不得以字符串比较驱动版本解析 |
+
+---
+
+# D-AUTH-20 — ACL Uniqueness Semantics
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A20`） |
+| **决策** | **保持现有 ACL 唯一性模型**。**不因 `DENY > ALLOW` 而强制修改 `resource_permissions UNIQUE`**；**不新增 `effect` 到当前 ACL uniqueness key**。冻结语义：ACL 层在同一唯一授权槽位中**不要求**同时保存 Allow 与 Deny 两条并存记录；授权状态变更采用**行替换/更新语义**，并在后续实现时保证**事务一致性与审计**。跨层 **`ACL DENY > RBAC ALLOW` 仍然成立**。 |
+| **理由 / 依据** | `resource_permissions` 唯一约束 `UNIQUE (resource_id, subject_type_id, subject_id, action)` 已落库（0007，0011 实测）；跨层 deny 优先依赖 `role_permissions`（另一张表），与 ACL 行的唯一键**不冲突**；层内 allow/deny 并存需求**未获证据支持**。 |
+| **影响范围** | `resource_permissions`（**不改约束**）· `services/authorization`（改判=替换 + 同事务审计） |
+| **实施阶段** | Authorization Implementation |
+| **禁止** | 不得重建 ACL 唯一约束；不得新增 `effect` 到唯一键 |
+
+---
+
+# D-AUTH-21 — Memory / Workflow Authorization ｛`DEFERRED`｝
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `DEFERRED`（2026-09-23 · `OQ-A21`） |
+| **已冻结的架构原则** | 未来 **Memory** 与 **Workflow** **必须使用同一 Canonical Authorization Model**；**禁止** `Memory-specific ACL system` 或 `Workflow-specific permission system`。 |
+| **Owner Phase** | **Agent Runtime** |
+| **理由** | `MemoryStore.read/write/delete` 与 `WorkflowRunner.run(steps)` **零授权参数**（对比 `Tool.invoke(params, context)` 有 context）；其授权动作、生命周期与 runtime semantics 需与 Agent Runtime 一并设计。 |
+| **Exit Condition** | Agent Runtime PREP 产出 Memory/Workflow 授权动作与作用域定义，并经 Human 授权后冻结。 |
+| **影响范围** | `agent/memory/interfaces.py` · `agent/workflow/interfaces.py`（须统一为 `AuthorizationContext`） |
+| **禁止** | 在 Exit Condition 满足前**不得**为 Memory/Workflow 建立独立授权体系 |
+
+---
+
+# D-AUTH-22 — Audit / Event ID = UUIDv7
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `OQ-A22`） |
+| **决策** | 未来 Audit / Event ID **推荐采用 `UUIDv7`**。理由：`Globally unique` + `Time ordered` + `Better index locality` + `Useful for event/audit chronology`。具体 persistence implementation 属 **P10**。 |
+| **理由 / 依据** | 数据律「ID = UUIDv7（应用层生成）」；DB 全部授权相关表 `PRIMARY KEY DEFAULT uap_uuid_v7()`；现 `core/audit._new_id()` 使用 `uuid.uuid4()`，为唯一异形方；审计事件天然为时间序列，有序 id 对 **P10 `audit_logs` 分区裁剪与归档**有直接收益。 |
+| **影响范围** | `core/audit`（id 生成策略）· 未来 `events`/`audit_logs`（P10） |
+| **实施阶段** | P10（persistence）；契约调整可随 Authorization Implementation |
+| **禁止** | 不得在 P10 之外创建 `events` / `audit_logs` |
+
+---
+
+# D-AUTH-23 — `agent_permissions.resource_scope` = Legacy Opaque（`GAP-11`）
+
+> 本条**不是** OQ。它是对 `AUTHORIZATION_IMPLEMENTATION_CONTRACT.md` §26 登记的 **`GAP-11`**（P09 Schema Conflict）
+> 的专项 Human Decision。**Human 显式选择 = `A — LEGACY OPAQUE`**，并同时裁定 **`ND-A`**。
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-23 · `GAP-11` · Human Decision **A**） |
+| **`GAP` 状态** | **`GAP-11 = RESOLVED`** —— 本条为其**唯一**处置；**无** schema 动作。**规范表述**：`resource_scope` = **OPAQUE TEXT** · **NOT AUTHORIZATION AUTHORITY** · `ND-A = RESOLVED`（**不追加** `<> ''`）· `P09` / `0011` **unchanged** |
+| **决策** | `agent_permissions.resource_scope` 保持 **P09 原有语义 = `OPAQUE TEXT`**。其值 **MUST NOT** 被解释为 Authorization Scope；**MUST NOT** 用作 canonical authorization authority；**MUST NOT** 用于推导 `PLATFORM` / `TENANT` / `SPACE` 权限；**MUST NOT** 用于扩大 effective authorization。该字段继续是 **P09 historical field + opaque metadata / restriction context**，**不是** Canonical Authorization Scope carrier。 |
+| **`ND-A`** | **`RESOLVED` = 不追加** `resource_scope <> ''`。⇒ `''` / `'   '` / 其他 opaque text 在当前 P09 结构规则下**仍可存在**（`ck_agent_permissions_scope_target` 仅要求「三选一非空」，**不约束取值**）。理由：该字段**不承担** Canonical Authorization Decision，**无需通过非空约束制造伪语义**。 |
+| **Canonical Scope 保护** | Canonical Authorization Scope 恒为 **`PLATFORM` / `TENANT` / `SPACE`**；`RESOURCE` / `SELF` 为 **predicate / contextual semantics**（`D-AUTH-06`）。**不得**从本字段推导上述 canonical scope。 |
+| **理由 / 依据** | ① `0011` 迁移源码自述 `# 范围限定（opaque text —— 不解释、不构成授权判定）`（`0011_p09_agent_tool_permission.py:216`）；② `P09_SCHEMA_DESIGN.md:203` = `范围限定（text，**不解释**）`；③ `agent_permissions` 上**无触发器**，`resource_scope` **无 FK / 无取值约束**，唯一涉它者 `ck_agent_permissions_scope_target` 不约束取值；④ 全仓 `.py` 对其**运行时引用 = 0**（仅 0011 源 + P09 集成测试）；⑤ 表行数 = **0**（P13 seed 前）；⑥ canonical scope 已有独立承载（`roles.scope` + `ck_roles_scope` + `tg_roles_scope_shape`）。⇒ 本条是**既有 P09 设计意图在授权层的正式化**，**非**新增授权语义。 |
+| **影响范围** | `AUTHORIZATION_IMPLEMENTATION_CONTRACT`（Service 禁令 / Runtime 引用规则 / `GAP-11` 行）· `AUTHORIZATION_SCHEMA_IMPACT`（`agent_permissions` = NO CHANGE）· `AUTHORIZATION_IMPLEMENTATION_TEST_MATRIX`（`AGENT-RESOURCE-SCOPE-01..04`）· `AUTHORIZATION_ACCEPTANCE_MATRIX` |
+| **实施阶段** | Authorization Implementation（**仅契约 / 测试层**；**无** schema 动作） |
+| **禁止** | 不得 `parse` / `normalize` / `map` / `promote` / `reinterpret` 该字段为 Canonical Authorization Scope；不得修改 `0011` 迁移 / `agent_permissions` 表 / 现有约束 / 现有索引；任何未来规范化、验证或重新定义需求 ⇒ **NEW HUMAN DECISION + P09 SUPERSESSION**。 |
+| **迁移影响** | **0** —— 本次不产生 schema 变更；`0012_authz_enforcement` 的既有规划**不变**。 |
+
+---
+
+# D-AUTH-24 — `D-B14-08` 由 `D-AUTH-05` 取代（保留 `SC-1b`）
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-24 · 冲突裁定 **A**） |
+| **决策** | `D-B14-08`（"`resource_permissions.action` 零新增 semantic/format contract；`action` = opaque action identifier"）**被 `D-AUTH-05` 取代**。`resource_permissions.action` **不再**维持"无词表约束"语义；**`SC-1b`（canonical action CHECK）成立并保留**。 |
+| **Supersession 关系** | `D-B14-08` → **`SUPERSEDED`** · **superseded by `D-AUTH-05`**（关系登记于本条） |
+| **理由 / 依据** | ① STAGE 2 Canonical Authorization Model（`D-AUTH-05`）冻结统一 Action 词表，并要求实现可在数据层校验；② `D-AUTH-05` 的影响范围**原文即已列明** `resource_permissions.action`（"未来 CHECK，见 `D-AUTH-17`"）；③ `D-B14-08` 自身把"词表与对齐规则"**defer 到 Permission Dictionary / Authorization 阶段** —— 本阶段即该阶段，deferred 条件已兑现；④ 否则 ACL 可长期存有永不匹配的 action，数据完整性与可审计性受损。 |
+| **影响范围** | `resource_permissions.action` · `SC-1b` · `tests/integration/test_resource_acl_schema.py`（`ACT-01`/`ACT-02` **保留**；"任意 opaque action 被接受"断言**移除**，改以 canonical 接受 + 非 canonical 拒绝） |
+| **实施阶段** | Authorization Implementation（**已实施**，见 `0012_authz_enforcement`） |
+| **禁止** | 不得据此改动 **P09 四表**（`agents`/`agent_versions`/`agent_permissions`/`tool_executions`）；不得改写 `B1-4_DECISION_LOG.md` 的**历史条文**（只允许追加 supersession 标记）；不得创建 `SC-3` |
+
+---
+
+# D-AUTH-25 — Action canonical 形式 = 小写
+
+| 字段 | 内容 |
+|---|---|
+| **状态** | `FROZEN`（2026-09-24 · 与冲突裁定 **A** 同批） |
+| **决策** | Action 的 **canonical 存储/传输形 = 小写**：`read` `list` `create` `update` `delete` `execute` `approve` `reject` `publish` `export` `share` `admin`。**`D-AUTH-05` 的 12 个动作名与其词表成员不变**；本条规定的是其**规范形（canonical form）**。归一规则 = **NFKC → strip → casefold**；数据层 CHECK 精确匹配小写形，调用方写入前必须归一。 |
+| **理由 / 依据** | 平台既有 `action` 惯例即为小写（既有 fixture `read`/`execute`/`invoke`/`delete`，以及 B1-4 文档示例 `read`/`write`/`share`）。若规范形取大写，则既有数据面与既有测试面全面失败，并使"防止拼写变体绕过授权"的防护与平台惯例**相互对立**。 |
+| **影响范围** | `core/permission/vocabulary.py`（`ACTIONS` · `normalize_action`）· `services/authorization/permissions.py`（`_same_action` 双侧归一）· `migrations_alembic/versions/0012_authz_enforcement.py`（CHECK 取值）· 相关测试 |
+| **明确不变（各词表保持自身大小写）** | `SUBJECT_TYPES`（`USER/ROLE/AGENT` · `D-AUTH-18`）· `STORED_SCOPES`（`PLATFORM/TENANT/SPACE` · `D-AUTH-06`）· `RISK_LEVELS`（`LOW/MEDIUM/HIGH/CRITICAL` · `D-AUTH-10`）· `EFFECTS`（`ALLOW/DENY/REQUIRES_APPROVAL` · `D-AUTH-14`）· `GRANT_EFFECTS`（`allow/deny`） |
+| **实施阶段** | Authorization Implementation（**已实施**） |
+| **禁止** | 不得据此改变 `D-AUTH-06`/`D-AUTH-10`/`D-AUTH-14`/`D-AUTH-18` 的词表大小写；不得反向放宽为"大小写不敏感存储"（存储形仍是精确小写，宽容度只在**入站归一**） |
+
+---
+
+# 附录 E — Authorization 冻结状态汇总（2026-09-24 更新）
+
+```text
+FROZEN   = 22
+  D-AUTH-01 · 02 · 04 · 05 · 06 · 07 · 08 · 09 · 10 · 11
+  D-AUTH-12 · 14 · 15 · 16 · 17 · 18 · 19 · 20 · 22 · 23 · 24 · 25
+
+DEFERRED = 3
+  D-AUTH-03  → Agent Runtime   （显式 Delegation Scope / Lifecycle）
+  D-AUTH-13  → Tool Runtime    （Authorization Cache implementation）
+  D-AUTH-21  → Agent Runtime   （Memory / Workflow authorization semantics）
+
+SUPERSEDED（`D-AUTH` 命名空间内）= 0
+  命名空间内不存在自取代。
+
+平台级 SUPERSEDED = 1
+  D-B14-08（B1-4 Decision Log，2026-09-13 `FROZEN — A`）
+      → SUPERSEDED by D-AUTH-05（取代关系登记于 D-AUTH-24，2026-09-24 Human Decision A）
+  显式继承并保持不变：R2-D-14（DENY > ALLOW）· R2-D-15（permission scope-neutral）·
+  R4 / PMB-1（effective_platform_admin）· ACL Subject Types `user | role | agent` · P09 schema。
+```
+
+> **编号空间说明**：`D-AUTH-01`…`D-AUTH-22` 一一对应 `OQ-A01`…`OQ-A22`（22 / 22）。
+> **`D-AUTH-23` 不属该序列** —— 来源自 `GAP-11`（Implementation Gap，非 OQ）。
+> **`D-AUTH-24` / `D-AUTH-25` 亦不属该序列** —— 来源自 **`D-B14-08` 冲突裁定**
+> （2026-09-24 Human Decision：**A — supersede `D-B14-08` 并保留 `SC-1b`**；**Action canonical 形 = 小写**）。
+> 故：**`OQ` 冻结 19 `FROZEN` + 3 `DEFERRED` = 22**（未变）；
+> **`D-AUTH` 条目总数 = 25，其中 `FROZEN` 22 + `DEFERRED` 3 + `SUPERSEDED` 0**。
+> **平台级 supersession 计数 = 1**（`D-B14-08`），与命名空间内计数**分开表述，不得混用**。
+
+**一致性要求（§27/§28）**：`PLATFORM_DECISION_LOG.md` ↔ `ARCHITECTURE.md` ↔ `DEPENDENCY_RULES.md` ↔
+`docs/security/README.md` ↔ `docs/api/README.md` ↔ `AUTHORIZATION_ACCEPTANCE_MATRIX.md` ↔
+`AUTHORIZATION_PREP_REPORT.md` ↔ `AUTHORIZATION_DECISION_RESOLUTION.md` **语义必须一致**。
+
+**本组条目不产生实施授权**：`D-AUTH-01`…`D-AUTH-23` 的落盘与 `FROZEN` 状态**不等于**任何代码 / 迁移 / 数据库 /
+配置 / 部署授权的开启（见 Charter §6 与本日志附录 D）。
+
+---
+
 **END OF PLATFORM_DECISION_LOG（B-1′ ，2026-09-20）**
 **END OF PLATFORM_DECISION_LOG（Decision Resolution · `D-PLAT-13`…`D-PLAT-17` 写入并置 `FROZEN`，2026-09-23）**
+**END OF PLATFORM_DECISION_LOG（STAGE 2 Decision Freeze · `D-AUTH-01`…`D-AUTH-22` 写入：19 `FROZEN` + 3 `DEFERRED`，2026-09-23）**
+**END OF PLATFORM_DECISION_LOG（`GAP-11` 专项 · `D-AUTH-23` 写入并置 `FROZEN`；`ND-A` = 不追加 `<> ''` ⇒ `D-AUTH` 共 23 条：20 `FROZEN` + 3 `DEFERRED`，2026-09-23）**
+**END OF PLATFORM_DECISION_LOG（`D-B14-08` 冲突裁定 · `D-AUTH-24`（supersession）与 `D-AUTH-25`（Action canonical 形 = 小写）写入并置 `FROZEN` ⇒ `D-AUTH` 共 25 条：22 `FROZEN` + 3 `DEFERRED` + 0 `SUPERSEDED`；平台级 supersession = 1，2026-09-24）**

@@ -119,6 +119,17 @@ R1 变更性质：**撤回上一轮 2 项"推荐"**（D-B14-01 / D-B14-02），�
 
 > **撤回声明**：上一轮 D-B14-08 的表述"与 `permissions.key` **同族** CK（推荐 A）"已被本项取代 —— 推荐改为 **默认 A（不加 CK）**，B 仅作可选收紧。
 
+> **⚠️ SUPERSEDED（2026-09-24，append-only 追记 —— 历史冻结原文保留于上，不改写）**
+> **`D-B14-08` 已由 `D-AUTH-05` 取代**（Human Decision **A**，取代关系登记于
+> `PLATFORM_DECISION_LOG.md` 的 **`D-AUTH-24`**）：
+> `resource_permissions.action` **不再**维持"零新增约束 / opaque identifier"语义；
+> **`SC-1b`（canonical action CHECK）成立并保留**，canonical 存储形 = **小写**（`D-AUTH-25`）。
+> `D-B14-08` 所延迟的"词表与对齐规则 defer 到 Permission Dictionary / Authorization 阶段"条件，
+> 已在该阶段由 `D-AUTH-05` 兑现。`ACT-01` / `ACT-02` 语义**不变**；
+> "任意 opaque action 被接受"断言（`ACT-03` 的反面）随本取代**移除**，改为
+> "canonical 接受 + 非 canonical 拒绝"。
+> 历史 freeze snapshot（`B1-4_HUMAN_DECISION_FREEZE_PACKAGE.md` R4 等）**保持原样，不改写**。
+
 ---
 
 ## D-B14-09 — `granted_by` 的语义与删除行为

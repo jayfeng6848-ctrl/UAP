@@ -34,3 +34,37 @@ Operational guidance: [`docs/operations/DEPLOYMENT_AND_RECOVERY.md`](../operatio
 
 > Status: **implemented**. See `D-PLAT-08` / `D-PLAT-14` / `D-PLAT-15 v2` /
 > `D-PLAT-16` in `docs/architecture/PLATFORM_DECISION_LOG.md`.
+
+## Authorization decision (contract)
+
+Frozen by `D-AUTH-01`…`D-AUTH-25`. Implementation exists in the working tree (uncommitted); acceptance pending.
+
+> Registry: `D-AUTH` total **25** = `FROZEN` **22** + `DEFERRED` **3** + `SUPERSEDED` **0**
+> (`OQ` 22 = 19 + 3; plus the non-OQ `D-AUTH-23` (GAP-11) and `D-AUTH-24` / `D-AUTH-25` (D-B14-08 conflict resolution, 2026-09-24); platform-level supersession = 1: `D-B14-08` → SUPERSEDED by `D-AUTH-05`).
+
+```json
+{
+  "subject": "…",           // USER | ROLE | AGENT
+  "delegator": "…",         // actor / delegator context, when applicable
+  "action": "read",         // canonical vocabulary, lowercase form (D-AUTH-25; see below)
+  "resource": {"type": "…", "id": "…", "tenant_id": "…", "space_id": "…"},
+  "scope": "TENANT",        // PLATFORM | TENANT | SPACE
+  "context": {},
+  "decision": "ALLOW",      // ALLOW | DENY | REQUIRES_APPROVAL
+  "reason": "…",
+  "policy_version": "…"
+}
+```
+
+Canonical actions: `READ` `LIST` `CREATE` `UPDATE` `DELETE` `EXECUTE` `APPROVE`
+`REJECT` `PUBLISH` `EXPORT` `SHARE` `ADMIN`.
+
+- `REQUIRES_APPROVAL` is a **decision state, not a grant** — no caller may treat
+  it as executable (`D-AUTH-14`).
+- `DENY > ALLOW`; results are deterministic, order-independent and auditable
+  (`D-AUTH-07`).
+- Every failure path returns `DENY` (`D-AUTH-12`).
+
+> Status: **design frozen — not implemented**. No authorization endpoint exists
+> and `services/` has not been created. See
+> [`docs/architecture/AUTHORIZATION_PREP_REPORT.md`](../architecture/AUTHORIZATION_PREP_REPORT.md).

@@ -69,8 +69,10 @@ B14_CHECK_CONSTRAINTS = {
     # acl_subject_types (2)
     "ck_acl_subject_types_key",
     "ck_acl_subject_types_whitelist",
-    # resource_permissions (1)
+    # resource_permissions (1) — plus the SC-1b canonical-action CK added by the
+    # STAGE 2 authorization change set (see the note on the CK assertion below).
     "ck_resource_permissions_effect",
+    "ck_resource_permissions_action_canonical",
 }
 B14_FK_DELETE_RULES = {
     "fk_resources_tenant": "r",              # RESTRICT
@@ -101,7 +103,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     yield
     reset_test_database()
 
@@ -230,7 +232,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}
@@ -370,12 +372,19 @@ def test_resource_permissions_schema_and_action_is_opaque(db) -> None:
         "fk_resource_permissions_subject_type": "r",
         "fk_resource_permissions_granted_by": "n",
     }
-    # D-B14-08 = A: only the effect CK exists; action has NO format/vocabulary CK
+    # ``D-B14-08 = A`` originally froze "action has NO format/vocabulary CK" for
+    # this table. That is no longer the platform state: ``SC-1b`` of the STAGE 2
+    # authorization change set adds ``ck_resource_permissions_action_canonical``
+    # to enforce the canonical action vocabulary (``D-AUTH-05``), which
+    # supersedes that clause. The effect CK is unchanged.
     cks = {r[0] for r in _rows(
         "SELECT conname FROM pg_constraint "
         "WHERE contype='c' AND conrelid='resource_permissions'::regclass"
     )}
-    assert cks == {"ck_resource_permissions_effect"}
+    assert cks == {
+        "ck_resource_permissions_effect",
+        "ck_resource_permissions_action_canonical",
+    }
     # the unique key is exactly the frozen 4-tuple
     assert _scalar(
         "SELECT count(*) FROM pg_constraint WHERE conname='uq_resource_perm' "
@@ -647,19 +656,31 @@ def test_d_b14_08_action_not_null_and_duplicate_rejected(db) -> None:
                 ), {"r": rid, "st": stype, "su": sid})
                 conn.commit()
             conn.rollback()
-            # arbitrary opaque action accepted (no vocabulary)
+            # ``D-B14-08`` was SUPERSEDED by ``D-AUTH-05`` (recorded as
+            # ``D-AUTH-24``), so this column now holds canonical actions only, in
+            # the lowercase form frozen by ``D-AUTH-25``. A canonical action is
+            # therefore accepted...
             conn.execute(sa.text(
                 "INSERT INTO resource_permissions "
                 "(resource_id, subject_type_id, subject_id, action, effect) "
-                "VALUES (:r, :st, :su, 'x9.opaque', 'allow')"
+                "VALUES (:r, :st, :su, 'read', 'allow')"
             ), {"r": rid, "st": stype, "su": sid})
             conn.commit()
+            # ...and ``SC-1b`` makes a non-canonical action fail closed.
+            with pytest.raises(sa.exc.IntegrityError):
+                conn.execute(sa.text(
+                    "INSERT INTO resource_permissions "
+                    "(resource_id, subject_type_id, subject_id, action, effect) "
+                    "VALUES (:r, :st, :su, 'x9.opaque', 'allow')"
+                ), {"r": rid, "st": stype, "su": sid})
+                conn.commit()
+            conn.rollback()
             # ACT-02: duplicate (resource, subject_type, subject_id, action) -> rejected
             with pytest.raises(sa.exc.IntegrityError):
                 conn.execute(sa.text(
                     "INSERT INTO resource_permissions "
                     "(resource_id, subject_type_id, subject_id, action, effect) "
-                    "VALUES (:r, :st, :su, 'x9.opaque', 'deny')"
+                    "VALUES (:r, :st, :su, 'read', 'deny')"
                 ), {"r": rid, "st": stype, "su": sid})
                 conn.commit()
             conn.rollback()
@@ -668,7 +689,7 @@ def test_d_b14_08_action_not_null_and_duplicate_rejected(db) -> None:
                 conn.execute(sa.text(
                     "INSERT INTO resource_permissions "
                     "(resource_id, subject_type_id, subject_id, action, effect) "
-                    "VALUES (:r, :st, :su, 'x9.other', 'maybe')"
+                    "VALUES (:r, :st, :su, 'delete', 'maybe')"
                 ), {"r": rid, "st": stype, "su": sid})
                 conn.commit()
             conn.rollback()

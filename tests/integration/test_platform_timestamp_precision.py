@@ -60,7 +60,9 @@ BUSINESS_TABLES = 30
 PHYSICAL_TABLES = 31
 
 # Current chain head（本文件只断言 head 常量，不假设具体业务阶段）。
-CURRENT_HEAD = "0011_p09_agent_tool_permission"
+# STAGE 2 (0012_authz_enforcement) 只新增 text 列与 CHECK，**不含任何时间列** ⇒
+# 下方的静态清单不变，覆盖集合仍为 0009 清单 ∪ P08 清单 ∪ P09 清单。
+CURRENT_HEAD = "0012_authz_enforcement"
 
 # --------------------------------------------------------------------------- #
 # P08 (0010_b1_6_ai_gateway) timestamp columns — explicit static list.

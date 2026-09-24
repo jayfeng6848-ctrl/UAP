@@ -51,7 +51,7 @@ FORBIDDEN_BUSINESS_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     yield
     reset_test_database()
 
@@ -212,11 +212,11 @@ def test_updated_at_trigger_maintains_value(db) -> None:
 # ============================================================ Test C + D
 def test_rerun_and_downgrade_roundtrip(db) -> None:
     upgrade(make_config(lock_mode="fail"), "head")  # C: rerun is a no-op
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
     downgrade(make_config(lock_mode="fail"), "base")  # D: full teardown
     assert current_revision() is None
     upgrade(make_config(lock_mode="fail"), "head")  # D: re-upgrade works
-    assert current_revision() == "0011_p09_agent_tool_permission"
+    assert current_revision() == "0012_authz_enforcement"
 
 
 # ============================================================ Security
