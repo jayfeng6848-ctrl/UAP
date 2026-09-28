@@ -134,6 +134,30 @@ Rules:
 > `G-1`…`G-9` are unchanged. Hardening these rules into guards requires a
 > separate, explicitly authorized change.
 
+## Carrier faces — five distinct surfaces (`D-P10-17`)
+
+A single "log" does not exist. Five carrier faces are formally separated, and
+`event` must never be fused with `audit` (nor either with an operational log):
+
+| face | carrier | owner |
+|---|---|---|
+| **event** | `events` table (domain fact + outbox; at-least-once, replayable) | **P10** |
+| **audit** | `audit_logs` table (compliance, immutable, not replayable) | **P10** |
+| **operational log** | `infrastructure/logging` (structured JSON + redaction; **never a DB table**) | not P10 |
+| **trace** | `trace_id` in the log envelope (a correlation identifier, not a carrier) | not P10 |
+| **metric** | undefined (a future monitoring surface) | not P10 |
+
+Rules:
+
+- An operational log is **never** written into `audit_logs`; audit records are
+  compliance artefacts with `reason` / `risk_level`, not diagnostics.
+- `event` and `audit` are **never** merged into one carrier: an event is a
+  replayable fact, an audit row is an immutable non-replayable record.
+- P10 owns the two carriers and **only** those two. The seven
+  `ix_events_*` / `ix_audit_*` indexes belong to **P12** (`D-P12-08`), so the
+  P10 migration creates none.
+- Enforced by `tests/architecture/test_p10_event_audit_boundary.py`.
+
 ## Adding a rule
 
 Add the check to `tests/architecture/` in the same commit that introduces the

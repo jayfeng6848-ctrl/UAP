@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ core
     APP_ENV: str = Field(default="development", description="development | test | staging | production")
     APP_NAME: str = Field(default="UAP", description="Universal AI Platform")
-    APP_VERSION: str = Field(default="0.1.12")
+    APP_VERSION: str = Field(default="0.1.13")
     APP_HOST: str = Field(default="0.0.0.0")
     APP_PORT: int = Field(default=8000, ge=1, le=65535)
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

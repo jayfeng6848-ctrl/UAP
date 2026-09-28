@@ -4998,3 +4998,97 @@ P16+                    = FORBIDDEN
 ```
 
 **END OF PLATFORM_DECISION_LOG（P15 IMPLEMENTATION ACCEPTANCE CLOSURE · 附录 T（append-only）· P15 IMPLEMENTATION = PASS · P15 ACCEPTANCE = PASS · O-1…O-6 复核 PASS · Security / Schema / Migration / Role / Grant 变更 = 0 · Wave 1 = 210/211 HISTORICAL · Wave 2 = 72 PASS · Blocking findings = 0 · Release / Commit / Tag / Push = 未授权；2026-09-28）**
+
+---
+
+# 附录 U — P15 FOUNDATION RESOLUTION（2026-09-28 · canonical registration）
+
+> **append-only**：不改写 `D-*`；不改写附录 A–T；不删除；不重排。
+
+## U.1 登记性质
+
+```text
+性质        = append-only 追加登记（附录 A–T 零改写）
+依据        = Human Decision HD-FRP-FOUNDATION-01
+              + F_RP_05_F_RP_02_FOUNDATION_DECISION_PACKAGE.md
+              + P15_F_RP_05_RESOLUTION_REPORT.md
+权限声明    = 本附录 ≠ Remote Push Authorization
+新的 Decision ID = HD-FRP-FOUNDATION-01（Foundation Human Decision · 本节登记其结论）
+```
+
+## U.2 UUIDv7 canonicality（ACCEPT / IMPLEMENT）
+
+```text
+Domain Event ID = canonical UUIDv7（应用层生成）
+Source of authority = D-P10-02 决策① + D-AUTH-22（既有 FROZEN，语义不变）
+实现   = core/event/interfaces.py 委托 core.audit.interfaces.new_event_id()
+         （不新增第二个 generator；不使用 uuid4）
+DB     = events.id uuid NOT NULL（无 server default、无格式 CHECK）
+         ⇒ 身份由应用层生成；DB 不校验格式
+性质   = 既有冻结决策的 implementation landing（非新语义）
+```
+
+## U.3 tenant_id nullable semantics（ACCEPT / FREEZE）
+
+```text
+DomainEvent.tenant_id = str | None
+  tenant_id != NULL → tenant-scoped event
+  tenant_id == NULL → platform-scoped event
+
+NULL ≠ 未知 tenant · NULL ≠ 绕过 tenant isolation · NULL ≠ platform_admin
+NULL ≠ 隐式平台租户替换
+
+一致性：committed DB schema（0013）events.tenant_id nullable = TRUE；
+        live DB 实测 is_nullable = YES
+⇒ application contract alignment（schema mutation = 0 · migration mutation = 0 · 0018+ = 0）
+```
+
+## U.4 Platform-scoped event semantics（ACCEPT / FREEZE）
+
+```text
+actor provenance remains present（不伪造 system / service actor）
+authorization remains required（platform scope 不豁免授权）
+space isolation cannot be bypassed（space_id 独立，不从 tenant NULL 推导）
+tenant-scoped actor cannot silently elevate to platform scope
+subject vocabulary = user / role / agent（不新增 subject 类型）
+若必须新增平台主体语义 ⇒ STOP · AUTHORIZATION DECISION REQUIRED
+```
+
+## U.5 Wave 1 verification baseline（FROZEN）
+
+```text
+EXPECTED VERIFICATION BASELINE = COMMITTED CLEAN-CLONE TREE
+working-tree development baseline = NOT ACCEPTED as release verification basis
+Wave 1 allowlist = 17（NO REDUCTION · NO TEST SUPPRESSION）
+成功判据 = collection errors = 0 · F-RP-05 failures = 0 ·
+           剩余唯一允许失败 = D-02（CLOSED historical condition）
+```
+
+## U.6 Carrier Faces authority（D-P10-17）
+
+```text
+docs/architecture/DEPENDENCY_RULES.md 恢复 = 仅 D-P10-17 的 Carrier faces 已冻结内容
+  （event / audit / operational log / trace / metric）
+不纳入 = AGENT_RUNTIME future scope（§9）
+不重写 = P09 Authorization status block（保持 committed 历史文本）
+```
+
+## U.7 F-RP-05 closure 与 F-RP-02 剩余范围
+
+```text
+F-RP-05 = CLOSED
+  Classification = PRE-EXISTING VERIFICATION-VISIBILITY DEFECT
+  Closure reason = Wave 1 committed clean-clone verification 不再依赖
+                   worktree-only 的 semantic / documentation 修改
+  Before = 208 passed / 3 failed（clean clone · 1×D-02 + 2×F-RP-05）
+  After  = 见 P15_FOUNDATION_RESOLUTION_REPORT.md（实测值）
+
+F-RP-02 = PARTIALLY RESOLVED（本轮只关闭已授权部分）
+  CLOSED   = UUIDv7 alignment · tenant_id contract · Carrier Faces
+  REMAINING OPEN / DEFERRED = tests/conftest.py ·
+                              infrastructure/database/__init__.py ·
+                              任何未授权 semantic item
+  F-RP-04 = CLOSED（0.1.12 已纳入 runtime_testkit.py 与 boundary guard；本轮不得回退）
+```
+
+**END OF PLATFORM_DECISION_LOG（P15 FOUNDATION RESOLUTION · 附录 U（append-only）· HD-FRP-FOUNDATION-01 = FROZEN · UUIDv7 = ACCEPT/IMPLEMENT · tenant_id nullable = ACCEPT/FREEZE · platform-scoped event = ACCEPT/FREEZE · Wave 1 baseline = COMMITTED CLEAN-CLONE · Carrier Faces = D-P10-17 恢复（AGENT_RUNTIME 排除）· F-RP-05 = CLOSED · F-RP-02 = PARTIALLY RESOLVED（conftest / infrastructure 保留 OPEN）· 附录 A–T 零改写 · Schema / Migration / Role / Grant / ACL = 0 · Remote Push = 未授权；2026-09-28）**
