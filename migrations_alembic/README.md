@@ -2,8 +2,25 @@
 
 Alembic 是 UAP **唯一** schema 变更入口（自 STEP 1-B 起）。
 
+## Migration 身份（独立于 runtime）
+
+```text
+UAP_MIGRATION_DATABASE_URL  =  Alembic / migration identity   （唯一 env 来源）
+DATABASE_URL                =  runtime application identity   （Alembic 不读取）
+```
+
+- `alembic.ini` **不再承载**可执行 DSN（见文件内注释）；解析只发生在 `env.py`。
+- 解析顺序：① `UAP_MIGRATION_DATABASE_URL` → ② `config.attributes["url"]`
+  （tests/CI 的**显式程序化注入**，由 `alembic_testkit.make_config()` 提供）→ ③ **FAIL-CLOSED**。
+- **不存在任何方向 的 fallback**：`DATABASE_URL` 不会成为 migration 来源，
+  migration 键也不会被 runtime 读取（`config/settings.py` 无该字段）。
+- `UAP_MIGRATION_DATABASE_URL` 缺失 ⇒ **FAIL-CLOSED**（明确报错，而不是连接到 runtime 数据库）。
+- 连接建立后，`env.py` 会断言「生效连接的 DB role == migration URL 中的角色」
+  （`_assert_effective_role`），防止静默错误身份（`R-02.4`）。
+
 ```bash
-# 开发/CI（需要 DATABASE_URL 指向目标库；缺省用 alembic.ini 的 dev DSN）
+# 开发/验证：migration 身份必须显式提供（runtime 的 DATABASE_URL 与此无关）
+export UAP_MIGRATION_DATABASE_URL=postgresql+psycopg://<migration-role>:<password>@<host>:<port>/<db>
 alembic upgrade head
 alembic downgrade base
 alembic current

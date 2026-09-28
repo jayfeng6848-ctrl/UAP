@@ -2,6 +2,20 @@
 
 Single migration entry point (see STEP1B_MIGRATION_IMPLEMENTATION_CONTRACT.md).
 
+Migration identity (D-OP101-10 · CF-BB-1 = NEW_STRUCTURE)
+    * ``UAP_MIGRATION_DATABASE_URL`` is the canonical -- and only -- *environment*
+      source of the migration DSN.
+    * ``DATABASE_URL`` is RUNTIME-ONLY. It is deliberately never read here: the
+      runtime key must not decide the migration identity.
+    * ``alembic.ini`` no longer carries an executable DSN, so it cannot act as a
+      connection fallback either.
+    * Resolution order: (1) ``UAP_MIGRATION_DATABASE_URL``,
+      (2) ``config.attributes["url"]`` (explicit programmatic override used by
+      tests/CI), (3) FAIL-CLOSED -- the identity is never inferred.
+    * No fallback in either direction (runtime->migration or migration->runtime).
+    * The effective connection's DB role is asserted against the role named in
+      the effective URL (``_assert_effective_role``).
+
 Guarantees
     * Exactly one migration runner executes DDL at a time via a documented
       PostgreSQL transactional advisory lock (pg_advisory_xact_lock).
@@ -22,6 +36,7 @@ from typing import Any
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool, text
+from sqlalchemy.engine import make_url
 
 # Make the project importable when running from this directory.
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,27 +50,74 @@ MIGRATION_LOCK_KEY: tuple[int, int] = (5_587_280, 1)
 
 DEFAULT_LOCK_TIMEOUT_SECONDS = 30
 
+#: Canonical migration identity source (env). See D-OP101-10.
+MIGRATION_URL_ENV = "UAP_MIGRATION_DATABASE_URL"
+#: Runtime-only key. Read by config/settings.py -- NEVER by this module.
+RUNTIME_URL_ENV = "DATABASE_URL"
+
 
 class MigrationLockError(RuntimeError):
     """Raised in ``fail`` mode when another runner holds the migration lock."""
 
 
+class MigrationIdentityError(RuntimeError):
+    """Raised when the effective migration identity cannot be established."""
+
+
 def _resolve_url() -> str:
-    """URL precedence:
-    1. config.attributes["url"] (programmatic override, used by tests/CI)
-    2. DATABASE_URL environment variable
-    3. alembic.ini sqlalchemy.url (dev default)
+    """Resolve the EFFECTIVE MIGRATION URL. Single-source, FAIL-CLOSED.
+
+    Precedence
+        1. ``UAP_MIGRATION_DATABASE_URL`` -- canonical migration identity source
+        2. ``config.attributes["url"]``   -- explicit programmatic override
+                                             (tests / CI; never a runtime fallback)
+        3. raise ``MigrationIdentityError``
+
+    Deliberately NOT consulted: ``DATABASE_URL`` (runtime-only) and
+    ``alembic.ini::sqlalchemy.url`` (removed -- no executable default DSN).
     """
+    env_url = os.environ.get(MIGRATION_URL_ENV)
+    if env_url and env_url.strip():
+        return env_url.strip()
+
     attr_url = context.config.attributes.get("url")
-    if attr_url:
-        return str(attr_url)
-    env_url = os.environ.get("DATABASE_URL")
-    if env_url:
-        return env_url
-    ini_url = context.config.get_main_option("sqlalchemy.url")
-    if not ini_url:
-        raise RuntimeError("sqlalchemy.url is not configured")
-    return ini_url
+    if attr_url and str(attr_url).strip():
+        return str(attr_url).strip()
+
+    raise MigrationIdentityError(
+        f"{MIGRATION_URL_ENV} is not set and no config.attributes['url'] override "
+        f"was supplied; refusing to run migrations without an explicit migration "
+        f"identity. {RUNTIME_URL_ENV} is runtime-only and is deliberately NOT "
+        f"used as a fallback, and alembic.ini carries no executable DSN."
+    )
+
+
+def _assert_effective_role(connection: Any, url: str) -> None:
+    """Assert the effective connection really is the role named in ``url``.
+
+    Guards against the silent-wrong-identity class of failure (R-02.4): a DSN
+    that is resolved but then rewritten (role mapping, pg_hba, pooled URL) would
+    otherwise run DDL as an unexpected principal.
+    """
+    try:
+        expected = make_url(url).username
+    except Exception as exc:  # pragma: no cover - defensive
+        raise MigrationIdentityError(f"unparseable migration URL: {exc}") from exc
+
+    if not expected:
+        raise MigrationIdentityError(
+            "the effective migration URL names no DB role; refusing to run "
+            "migrations with an anonymous identity"
+        )
+
+    row = connection.execute(text("SELECT current_user, session_user")).one()
+    effective, session_user = str(row[0]), str(row[1])
+    if effective != expected:
+        raise MigrationIdentityError(
+            f"effective migration role {effective!r} does not match the role named "
+            f"in the migration URL {expected!r} (session_user={session_user!r}); "
+            f"refusing to run migrations under an unexpected identity"
+        )
 
 
 def _lock_mode() -> str:
@@ -120,7 +182,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Connect and run migrations inside one transaction holding the lock."""
     cfg = context.config
-    cfg.set_main_option("sqlalchemy.url", _resolve_url())
+    url = _resolve_url()
+    cfg.set_main_option("sqlalchemy.url", url)
 
     connectable = engine_from_config(
         cfg.get_section(cfg.config_ini_section, {}),
@@ -129,6 +192,13 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Migration-identity assertion (D-OP101-10 · requirement 7):
+        # the effective connection must be the role named in the effective URL.
+        _assert_effective_role(connection, url)
+        # _assert_effective_role() executes SELECT statements before Alembic transaction setup.
+        # SQLAlchemy 2.0 autobegin leaves the connection in an active transaction.
+        # Roll back only this assertion transaction and return transaction ownership to Alembic.
+        connection.rollback()
         context.configure(
             connection=connection,
             target_metadata=None,

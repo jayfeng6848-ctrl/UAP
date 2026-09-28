@@ -23,7 +23,10 @@ services:
     environment:
       APP_ENV: development
       APP_NAME: UAP
-      APP_VERSION: 0.1.0
+      APP_VERSION: 0.1.11
+      # RUNTIME identity only (D-OP101-10 / CF-BB-3 = A). The api service must
+      # NEVER receive UAP_MIGRATION_DATABASE_URL: the runtime cannot read or
+      # fall back to the migration DSN.
       DATABASE_URL: postgresql+psycopg://uap:uap@postgres:5432/uap
       LOG_LEVEL: INFO
       LOG_FORMAT: json
@@ -32,6 +35,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  # MIGRATION identity: this compose file deliberately defines NO migration
+  # service / entrypoint (OI-BB-5 = NO EXISTING CI CARRIER / NO CREATION
+  # AUTHORIZED). Alembic is executed out of band with
+  #   UAP_MIGRATION_DATABASE_URL=postgresql+psycopg://<migration-role>:<pw>@<host>/<db>
+  # and reads ONLY that key -- it never uses DATABASE_URL (see
+  # migrations_alembic/env.py and migrations_alembic/README.md).
 
   # Optional: enable with `docker compose --profile cache up -d`.
   redis:

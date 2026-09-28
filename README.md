@@ -38,13 +38,23 @@ docs/            architecture, security, api, socket, ai, agent, operations
 ```bash
 cp .env.example .env          # then fill in locally (never commit)
 pip install -r requirements.txt
+```
 
-# Option A: local PostgreSQL
-export DATABASE_URL=postgresql+psycopg://uap:uap@localhost:5432/uap
+There are **two independent database identities** (D-OP101-10); there is no
+fallback in either direction:
 
-# Option B: docker (api + postgres)
+```bash
+# Option A: local PostgreSQL -- fill in BOTH, with separate values
+export DATABASE_URL=postgresql+psycopg://<runtime-role>:<password>@<host>:<port>/<db>
+export UAP_MIGRATION_DATABASE_URL=postgresql+psycopg://<migration-role>:<password>@<host>:<port>/<db>
+
+# Option B: docker (api + postgres) -- the api service carries DATABASE_URL only
 docker compose up --build
 
+# Apply schema migrations. Alembic reads ONLY UAP_MIGRATION_DATABASE_URL:
+#   Alembic does NOT use DATABASE_URL.
+#   DATABASE_URL is NOT a migration fallback.
+# A missing UAP_MIGRATION_DATABASE_URL fails closed.
 alembic upgrade head           # apply schema migrations (sole entry point)
 uvicorn apps.api.main:app --reload
 ```

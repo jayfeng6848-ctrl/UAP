@@ -4698,3 +4698,303 @@ Q-5  D-01（Wave 1 persistence.py foundation defect）保持 frozen；
 ```
 
 **END OF PLATFORM_DECISION_LOG（P14 D-02 HUMAN DECISION · 附录 **Q**（append-only canonical registration）· `D-02 = CLOSED（OPTION B）` · 不重建测试库 · 不 replay GRANT/REVOKE · 不改 Wave 1 frozen artifact · 审计不变量由独立 Wave 2 测试覆盖 · 既有 `D-*` 与 `附录 A–P` 零改写 · DB / role / grant / revoke / migration / schema = 0；2026-09-28）**
+
+---
+
+# 附录 R — P15 HUMAN DECISIONS（2026-09-28 · canonical registration）
+
+> **append-only**：不修改任何既有 `D-*` 正文；不修改附录 A–Q；不删除；不重排。
+> 授权来源：Human 指令「UAP P15 HUMAN DECISION RESOLUTION + IMPLEMENTATION CONTRACT PREP」。
+> Selected Option 以**真实 Decision Sheet 文本**为准（非编号猜测），文本记于本附录。
+
+## R.1 计数
+
+```text
+P15 Human Decision 共 **6** 条：resolved 6 · unresolved 0 · UNKNOWN 0
+P15 Primary Theme = **C-5 Events / Outbox Consumer**
+⇒ `P15 Decisions = FROZEN` · `P15 Implementation = NOT AUTHORIZED`
+```
+
+## R.2 逐项登记（全部 FROZEN）
+
+```text
+P15-DEC-01 ｜ P15 主题 / scope 组成
+  Selected Option = **Option A（真实文本：「运行时/后台能力优先（C-5 outbox consumer + C-8 审计深化）」）
+                      + Human 细化：P15 primary theme = **仅 C-5**；C-8 排除出 P15（= FUTURE）**
+  Status = FROZEN
+  Resolution：P15 = EVENT / OUTBOX CONSUMER RUNTIME SLICE；Primary Candidate = C-5
+  Basis：C-5 补齐"事件已产生但无受控、可靠、可观测、可重放受限、具幂等语义的 Consumer 执行层"
+  Non-goals：AI feature / Frontend / Business module / Admin console / Bootstrap CLI /
+             Audit redesign / Foundation maintenance 均非 P15 主题
+  Impact：Schema 需依据 C-5 证据判定（本轮判定 = 无需变更）· Runtime = major · API = indirect
+
+P15-DEC-02 ｜ 管理类能力与 authorization 词表
+  Selected Option = **Option A（真实文本：「保持现状（不引入管理类能力）」）**
+  Status = FROZEN
+  Resolution：保持自助模型 + ownership validation + authenticated-user based authorization；
+              不引入 admin-on-behalf-of-user
+  New admin action = NO · New authorization action = NO · New role = NO · New permission = NO ·
+  New grant = NO · New principal = NO
+  不得修改：Stage 2 · canonical 12 actions · role_permissions · permissions · acl_subject_types
+  C-2 = NOT IN P15 ACTIVE SCOPE（未来需 admin 能力 ⇒ 重新建立独立 Human Decision）
+
+P15-DEC-03 ｜ Bootstrap CLI 时机
+  Selected Option = **Option A（真实文本：「本轮不实现（保持 DB 层就绪、无代码）」）**
+  Status = FROZEN
+  Resolution：Bootstrap CLI implementation = NOT PART OF P15 · uap_bootstrap grant change = NO ·
+              new/public bootstrap endpoint = NO · new bootstrap schema object = NO
+  Basis：RTA-09 既有分离边界 · uap_bootstrap 安全边界已建立 · operational bootstrap 保持独立能力
+  C-4 = OUT OF P15
+
+P15-DEC-04 ｜ D-01 foundation maintenance
+  Selected Option = **Option A（真实文本：「Keep Deferred」）**
+  Status = FROZEN
+  Resolution：D-01 = KEEP DEFERRED；不得修改 infrastructure/database/persistence.py、
+              不得重写 Repository helper / 修 _fetch_one / 修 _fetch_all / 改 Wave 1 foundation 行为
+  Frozen invariant：persistence.py sha256 = 69d2c14064d19d5355cf867665476c3432cca2e4561f491bab0c86c9f3876fd6
+  P15 Consumer read path 必须沿用已验证安全路径（services/reads.SafeReader）；
+  不得为 P15 方便重新启用 D-01 defective helper
+  若 P15 证明 Worker/Consumer active path 无法安全避开 D-01 ⇒
+              **STOP · FOUNDATION CHANGE REQUIRED**（不得自行修复）
+
+P15-DEC-05 ｜ FINDING-ENGINE-1（engine 双轨）
+  Selected Option = **Option A（真实文本：「保持现状（accepted compatibility）」）**
+  Status = FROZEN
+  Resolution：`/ready` 继续保留 Wave-0 process-engine compatibility；
+              P14 RuntimeDatabase 继续作为 Runtime 数据访问路径
+  不得：rewrite /ready · remove process engine · replace Wave0 engine · merge health engine ·
+        change existing health contract
+  FINDING-ENGINE-1 = ACCEPTED COMPATIBILITY（保持）
+
+P15-DEC-06 ｜ events / outbox consumer
+  Selected Option = **Option B（真实文本：「引入专用 consumer」）
+                      + Human 前置条件：先冻结 Worker Boundary 与 Idempotency Contract，再实施 Consumer**
+  Status = FROZEN
+  Resolution：必须先把以下语义写进 Implementation Contract 并冻结：
+              worker boundary 明确 · consumer responsibility 明确 · idempotency semantics 冻结 ·
+              retry semantics 冻结 · failure semantics 冻结 · audit/observability semantics 冻结 ·
+              仅当这些契约被接受后，implementation 才可开始
+  Impact：Security = worker security（**SECURITY DECISION REQUIRED 若现有 uap_runtime 授权不足**）·
+          Authorization = 必须继承 P14（不得绕过）· Schema = TBD（本轮判定：现有 events 表已足够）·
+          Runtime = primary · API = indirect · Migration = TBD
+```
+
+## R.3 Final Candidate Disposition（P15 scope decision · 非永久 roadmap 承诺）
+
+```text
+C-1 D-01                       = MAINTENANCE / DEFERRED
+C-2 Management Capability      = DEFERRED / NOT P15
+C-3 /ready Dual Track          = ACCEPTED COMPATIBILITY
+C-4 Bootstrap CLI              = OUT OF P15
+C-5 Events / Outbox Consumer   = **PRIMARY P15 THEME（IN P15）**
+C-6 AI Activation              = FUTURE
+C-7 Frontend                   = FUTURE
+C-8 Audit Deepening            = FUTURE
+（未来如需改变 ⇒ 建立新的 Decision；本附录不作为 roadmap 承诺）
+```
+
+## R.4 边界
+
+```text
+本附录仅登记决策；**不构成 implementation / migration / release 授权**
+P15 IMPLEMENTATION = NOT AUTHORIZED（须 Decisions FROZEN + Implementation Contract FROZEN +
+                                    Security Gate PASS + Schema Decision RESOLVED +
+                                    Acceptance Matrix FROZEN）
+既有 `D-*` 与附录 A–Q 零改写 · DB / role / grant / revoke / migration / schema = 0
+```
+
+**END OF PLATFORM_DECISION_LOG（P15 HUMAN DECISIONS · 附录 **R**（append-only canonical registration）· `P15-DEC-01…06` = **FROZEN**（6 resolved · 0 unresolved · 0 UNKNOWN）· Primary Theme = **C-5 Events / Outbox Consumer** · DEC-02/03/04/05 = Option A · DEC-01 = Option A（细化为仅 C-5）· DEC-06 = Option B + 契约前置 · D-01 保持 DEFERRED（sha 69d2c140…）· Stage 2 / 12 canonical actions / uap_runtime 51 / uap_bootstrap 6 未变 · 既有 `D-*` 与附录 A–Q 零改写 · DB / role / grant / revoke / migration / schema = 0 · `P15 IMPLEMENTATION = NOT AUTHORIZED`；2026-09-28）**
+
+---
+
+# 附录 S — P15 C-5 OPEN DECISIONS FREEZE（2026-09-28 · canonical registration）
+
+> **append-only**：不改写 `D-*`；不改写附录 A–R；不删除；不重排。
+> 授权来源：Human 指令「P15 EVENT/OUTBOX — OPEN DECISIONS FREEZE + IMPLEMENTATION CONTRACT FINALIZATION」。
+
+## S.1 计数
+
+```text
+P15-DEC-01…06 = FROZEN（承附录 R）
+O-1 … O-6     = **FROZEN**（本次新增冻结）
+OPEN DECISIONS = **0** · UNKNOWN = 0 · MAYBE = 0 · TBD = 0
+Primary P15 Theme = **C-5 Events / Outbox Consumer** · C-8 = FUTURE
+```
+
+## S.2 O-1 … O-6 冻结内容
+
+```text
+O-1 Lease Recovery = FROZEN
+  条件：status='claimed' AND lease_expires_at < now()
+  attempts < MAX_ATTEMPTS ⇒ status='pending' · worker_id=NULL · claimed_at=NULL ·
+                             lease_expires_at=NULL · **保留 attempts** · 保留足量诊断 last_error
+  attempts >= MAX_ATTEMPTS ⇒ status='dead' · terminal reason = `lease_expired_max_attempts`
+  关键规则：**lease recovery 不增加 attempts**（attempts = 实际执行尝试次数）
+  禁止：claimed → claimed（无限占用 lease）· expired claim 未重新 claim 即执行
+  Atomicity：claim/recovery 必须使用条件 UPDATE 并检查 rowcount；rowcount=0 ⇒ 不假设所有权、
+             不执行、重新读取或跳过
+
+O-2 Attempts / Backoff = FROZEN
+  MAX_ATTEMPTS = **10**（application policy）· DB 硬上限 100 保留（ck_events_attempts）
+  Backoff = 确定性指数：base 5s · multiplier 2 · cap 10min
+     失败 1→+5s · 2→+10s · 3→+20s · 4→+40s · 5→+80s · 6→+160s · 7→+320s · 8→+640s · 9→+600s(cap)
+     attempt 10 失败 ⇒ status='dead'
+  禁止：infinite retry · random unbounded retry · retry forever · 本轮**不引入 jitter**
+  理由：deterministic · testable · auditable · predictable（未来高并发多实例再单独 Decision）
+
+O-3 Worker Actor = FROZEN
+  **不新增 authorization subject vocabulary**：不得引入 system / service / platform / worker /
+  consumer 作为新的 canonical ACL subject type；保持现有 `user` / `role` / `agent`
+  Actor provenance = **originating actor**：actor_type = 既有受支持 subject type ·
+                                   actor_id = 既有 subject identity
+  禁止：NULL actor 自动升级为 platform_admin · 借用 uap_bootstrap / uap_migrator 执行业务操作
+  Authorization：Worker = execution mechanism ≠ superuser；需用户授权的 use-case 必须满足
+      original actor valid AND tenant valid AND space valid AND ownership/membership valid
+      AND Stage2 authorization allows ⇒ execute；actor 无效 ⇒ deny
+  若某 use-case 必须新增 system/service/platform subject ⇒
+      **STOP · AUTHORIZATION DECISION REQUIRED**（不得自行扩展）
+
+O-4 Concurrency = FROZEN
+  worker process count = 1 · concurrency = 4 · batch size = 10 ·
+  lease duration = 120s · heartbeat = 40s
+  Claim：单批 ≤ 10 events · atomic / conditional / bounded；
+         禁止 "SELECT many → 逐个 UPDATE"；ownership 由 DB 原子条件保证（非 Python 内存锁）
+  Lease：初始 120s；heartbeat 每 40s；仅当 status='claimed' AND worker_id=current_worker
+         AND lease 未终局过期 ⇒ lease_expires_at = now+120s；
+         rowcount != 1 ⇒ worker 失去所有权 ⇒ **必须安全停止执行**
+  Shutdown：stop claiming → 完成有界操作 → 持久化结果 → 释放/结束所有权 → exit
+  Hard crash：lease 过期 ⇒ O-1 recovery（不依赖 graceful shutdown）
+
+O-5 Event Type Whitelist = FROZEN
+  **CLOSED ALLOWLIST**；禁止 `*` / `%` / unknown event_type / auto-discover & execute /
+  dynamic import from event_type；只有 event_type + explicit handler + explicit acceptance
+  coverage 才可执行
+  初始集合（只读证据）：仓库**无任何 event producer 代码**（services/apps/core 无
+  `INSERT INTO events`）；`events` 行数 = 0 · distinct event_type = 0
+  ⇒ **ALLOWLIST = EMPTY**（合法状态）：P15 可先实现 consumer infrastructure / claiming /
+     lease / retry / idempotency / observability，但 **no production event handler enabled**；
+     不得为"让 Consumer 有东西跑"而创造 fake business event type
+  注册机制：仅 code-level explicit mapping（或项目既有已冻结注册机制）；
+            禁止 DB 动态注册；未知类型 ⇒ status='dead' · reason=`unsupported_event_type`（不死循环重试）
+
+O-6 Idempotency Exclusion = FROZEN
+  Consumer **默认排除**无法证明幂等安全的 use-case；允许执行者必须满足至少一项：
+     A. naturally idempotent · B. transactional idempotency key ·
+     C. persistent deduplication/uniqueness already guaranteed by existing schema
+  必须可证明：duplicate delivery ⇒ no unacceptable duplicate side effect
+  无法证明 idempotent=true ⇒ **NOT ELIGIBLE FOR CONSUMER**（不得"probably safe"/"小心重试"）
+  Idempotency key：优先 `event_id` 作为 primary delivery identity；更细粒度用
+                   `event_id + operation identity`（须在 handler contract 显式定义）
+  禁止以 timestamp / retry 期间生成的 random UUID / worker_id 作为 duplicate identity
+```
+
+## S.3 其它冻结项（同轮）
+
+```text
+Event lifecycle（最终）：pending → claimed → execute
+     success ⇒ delivered · retryable failure ⇒ pending + next_attempt_at · terminal ⇒ dead
+  crash：claimed → lease expires → recovery → pending OR dead
+  禁止：delivered → pending · dead → pending（自动）；dead replay = 未来独立 Decision（不在 P15 baseline）
+Success semantics：仅当 use-case side effect + required persistence outcome 完成并满足事务契约 ⇒
+  delivered + delivered_at=now；禁止 mark delivered before side effect；禁止 catch → mark delivered
+Authorization failure：不按 transient 重试 ⇒ 记 terminal denial ⇒ dead
+Transaction：claim → execute bounded use-case → persist durable outcome；失败 rollback；
+  禁止 commit partial business state 后假设 retry 安全
+Tenant/Space：必须使用事件明确的 tenant/space/actor/ownership；禁止 random/global fallback；
+  tenant missing / space ambiguous / membership invalid ⇒ fail-closed
+Audit/Observability：operational event ≠ audit row；audit 继续 append-only（禁 DELETE/UPDATE/truncate）；
+  新增 audit semantics ⇒ AUDIT DECISION REQUIRED
+Security boundary：不新增 principal/role/grant/default ACL/RLS；沿用 uap_runtime 51 · uap_bootstrap 6 ·
+  uap_app 5 · uap_seed 0 · uap_migrator 245 · default_acl 0；
+  若 uap_runtime 授权不足 ⇒ **STOP · SECURITY IMPLEMENTATION GATE REQUIRED**（不得自行 GRANT）
+Schema boundary：Schema Decision = RESOLVED FOR CURRENT SCOPE；优先使用现有 events / events_202609
+  与既有列（status/worker_id/claimed_at/lease_expires_at/attempts/next_attempt_at/last_error/
+  delivered_at）；不得创建 0018 / new events 表 / worker 表 / consumer 表 / dedup 表 / lease 表 /
+  dead-letter 表（除非新证据显示现有 schema 无法满足已冻结契约）
+Scope finalization：IN = C-5；OUT = C-1 D-01 repair · C-2 admin management · C-3 /ready redesign ·
+  C-4 Bootstrap CLI · C-6 AI · C-7 Frontend · C-8 Audit deepening
+  注：C-8 虽曾出现在 P15-DEC-01 Option A 原文，本次 Human Resolution 已将 primary theme 收敛为
+      "仅 C-5" ⇒ C-8 不进入本轮 implementation scope（历史 Option 原文不改）
+```
+
+**END OF PLATFORM_DECISION_LOG（P15 C-5 OPEN DECISIONS FREEZE · 附录 **S**（append-only canonical registration）· `O-1…O-6` = **FROZEN**（MAX_ATTEMPTS=10 · 确定性退避 5s×2 cap10min · 不新增 subject · worker=1/concurrency4/batch10/lease120s/hb40s · CLOSED ALLOWLIST（当前 EMPTY）· 幂等不可证明者排除）· `P15-DEC-01…06` FROZEN（附录 R）· OPEN DECISIONS = 0 · Primary Theme = C-5 Events / Outbox Consumer · C-8 = FUTURE · D-01 sha 69d2c140… 保持 · uap_runtime 51 / uap_bootstrap 6 / default_acl 0 未变 · 既有 `D-*` 与附录 A–R 零改写 · DB / role / grant / revoke / migration / schema = 0 · `P15 IMPLEMENTATION = NOT AUTHORIZED`；2026-09-28）**
+
+---
+
+# 附录 T — P15 IMPLEMENTATION ACCEPTANCE CLOSURE（2026-09-28 · canonical registration）
+
+## T.1 登记性质
+
+```text
+性质        = append-only 追加登记（附录 A–S 零改写）
+依据        = P15_IMPLEMENTATION_ACCEPTANCE_REPORT.md
+            · P15_IMPLEMENTATION_ACCEPTANCE_MAPPING.md
+            · P15_BATCH4_TEST_EXECUTION_REPORT.md
+            · P15_FINAL_FINDING_REGISTRY.md
+权限声明    = 本附录 ≠ Release Authorization ≠ Commit/Tag/Push Authorization
+新的 Decision ID = 0（本附录只登记实现验收结果，不产生新决策）
+```
+
+## T.2 Batch 结果登记
+
+```text
+Batch 1 Consumer Kernel                     = PASS（13 passed）
+Batch 2 Claim / Lease / Heartbeat / Recovery = PASS（13 passed）
+Batch 3 Worker（lifecycle/concurrency/shutdown）= PASS（30 passed）
+Batch 4 Full Acceptance + Cross-Wave        = PASS（9 passed entry + 完整验收）
+P15 测试合计                                 = 65 passed / 0 failed
+
+P14 Wave 1 regression = 210 passed + 1 failed（D-02 HISTORICAL RECORD · 断言保持原样）
+Wave 2 regression     = 72 passed
+Cross-Wave            = PASS
+```
+
+```text
+Process entry 判定 = Contract §2 明确要求 `apps/worker/**`（专用 consumer 入口）
+  （P14 已将其列为 OUT OF SCOPE ⇒ 属 P15 范围）
+  已按最小补齐执行：apps/worker/main.py = load config → 既有 runtime DB 依赖 →
+  构造 worker → SIGINT/SIGTERM → poll → drain → exit
+  未引入新框架 / process manager / Celery / scheduler / broker / 新 principal / 新 schema / 新 grant
+```
+
+## T.3 冻结值复核（O-1…O-6 · 逐项）
+
+```text
+O-1 Lease Recovery  = PASS（attempts<10 → pending · attempts 不变；attempts>=10 → dead）
+O-2 Attempts/Backoff = PASS（MAX_ATTEMPTS=10 · 5/10/20/40/80/160/320/600/600 · cap=600 · 无 640）
+O-3 Worker Actor     = PASS（不新增 subject；使用事件 originating actor；不绕过 Stage 2）
+O-4 Concurrency      = PASS（worker=1 · concurrency=4 · batch<=10 · lease=120s · heartbeat=40s）
+O-5 Event Whitelist  = PASS（CLOSED ALLOWLIST · 当前 EMPTY；未知类型 → dead）
+O-6 Idempotency      = PASS（幂等不可证明的 use-case 不纳入 consumer 范围）
+```
+
+## T.4 边界不变量（本附录自证）
+
+```text
+Security Boundary   = INTACT（uap_runtime 51 · uap_bootstrap 6 · uap_app 5 · uap_seed 0 ·
+                       uap_migrator 245 · default_acl 0 · memberships 0 · ownership residual 0）
+C2 / CC-7           = INTACT（C2 md5 185e95be8bc4304edbcd3f4d5cda1eff）
+P13 seed            = INTACT（acl_subject_types 3 · permissions 12 · role_permissions 12）
+Schema / Migration  = 0017_p13_seed · 0018+ = 0 · pg_class/proc/trigger = 156/22/272（未变）
+Formal DB uap       = prestate == poststate
+test db 唯一差异     = audit_logs 1412 → 1655（+243 · append-only EXPECTED TEST DATA）
+
+DDL / DML（正式库）/ ROLE / GRANT / REVOKE / OWNER / MIGRATION = 0
+commit / tag / push / release = 未执行
+
+D-01                = DEFERRED（persistence.py sha 69d2c140… 未变 · P15 活跃路径依赖 = 0）
+D-02                = CLOSED（historical · 未改写）
+FINDING-AUTHZ-1     = DEFERRED / OUT OF P15 SCOPE
+Blocking findings   = 0
+```
+
+## T.5 未授权项（硬边界）
+
+```text
+P15 RELEASE PREPARATION = NOT STARTED
+P15 COMMIT / TAG / PUSH = FORBIDDEN
+P16+                    = FORBIDDEN
+下一步                  = 必须单独授权：P15 OVERALL ACCEPTANCE → P15 RELEASE PREPARATION
+```
+
+**END OF PLATFORM_DECISION_LOG（P15 IMPLEMENTATION ACCEPTANCE CLOSURE · 附录 T（append-only）· P15 IMPLEMENTATION = PASS · P15 ACCEPTANCE = PASS · O-1…O-6 复核 PASS · Security / Schema / Migration / Role / Grant 变更 = 0 · Wave 1 = 210/211 HISTORICAL · Wave 2 = 72 PASS · Blocking findings = 0 · Release / Commit / Tag / Push = 未授权；2026-09-28）**

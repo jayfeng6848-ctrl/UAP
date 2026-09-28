@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ core
     APP_ENV: str = Field(default="development", description="development | test | staging | production")
     APP_NAME: str = Field(default="UAP", description="Universal AI Platform")
-    APP_VERSION: str = Field(default="0.1.0")
+    APP_VERSION: str = Field(default="0.1.11")
     APP_HOST: str = Field(default="0.0.0.0")
     APP_PORT: int = Field(default=8000, ge=1, le=65535)
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default=SECRET_KEY_PLACEHOLDER)
 
     # ---------------------------------------------------------- data storage
+    # RUNTIME-ONLY (D-OP101-10 / CF-BB-3 = A). This key feeds the application
+    # engine (infrastructure/database/*) and NOTHING else. The migration identity
+    # is carried by ``UAP_MIGRATION_DATABASE_URL`` and is resolved exclusively in
+    # ``migrations_alembic/env.py`` -- it is deliberately NOT a settings field, so
+    # the runtime process can neither read nor fall back to the migration DSN.
     DATABASE_URL: str = Field(default="postgresql+psycopg://uap:uap@localhost:5432/uap")
     DB_POOL_SIZE: int = Field(default=5, ge=1)
     DB_MAX_OVERFLOW: int = Field(default=10, ge=0)
