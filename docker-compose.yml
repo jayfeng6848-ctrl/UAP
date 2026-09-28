@@ -23,7 +23,7 @@ services:
     environment:
       APP_ENV: development
       APP_NAME: UAP
-      APP_VERSION: 0.1.11
+      APP_VERSION: 0.1.12
       # RUNTIME identity only (D-OP101-10 / CF-BB-3 = A). The api service must
       # NEVER receive UAP_MIGRATION_DATABASE_URL: the runtime cannot read or
       # fall back to the migration DSN.
