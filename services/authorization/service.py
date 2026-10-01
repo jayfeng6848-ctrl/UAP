@@ -11,7 +11,7 @@ until a real traffic model exists.
 from __future__ import annotations
 
 from core.permission import Action, AuthorizationRequest, Decision, Subject
-from core.permission.decision import combine
+from core.permission.decision import ABSTAIN, combine
 from core.resource import ResourceRef
 from core.permission.vocabulary import is_risk_level, risk_rank
 from sqlalchemy import Engine
@@ -60,6 +60,13 @@ class AuthorizationService:
         """Evaluate one request. Never raises; every failure denies."""
         actor_id = request.subject.actor_id or request.subject.identity_id
 
+        # P18-D06 (additive): a **pre-resource** structural operation has no
+        # resource row yet (a tenant/space being created). That path is explicit
+        # and separate; it never reaches the resource resolver and never changes
+        # the behaviour of a resource-bearing request.
+        if request.resource is None:
+            return self._authorize_pre_resource(request, actor_id=actor_id)
+
         try:
             action = self._actions.resolve(request.action, request.resource.type)
         except ActionResolutionError as exc:
@@ -100,6 +107,90 @@ class AuthorizationService:
             )
 
     # --------------------------------------------------------------- internals
+    def _authorize_pre_resource(self, request: AuthorizationRequest, *, actor_id: str) -> Decision:
+        """Platform-scope authorization for an object that does not exist yet.
+
+        Requires an explicit declared resource type on the action; only
+        ``PLATFORM``-scope grants are eligible (see
+        ``PermissionResolver.platform``); the ACL layer abstains because there is
+        no resource instance; the policy layer is still evaluated so it can only
+        ever restrict. No resource, permission or role is invented.
+        """
+        declared_type = getattr(request.action, "resource_type", "") or ""
+        if not declared_type:
+            return self._finish(
+                request,
+                action_name="",
+                decision=_deny("pre-resource-requires-declared-resource-type"),
+            )
+
+        try:
+            action = self._actions.resolve(request.action, declared_type)
+        except ActionResolutionError as exc:
+            return self._finish(request, action_name="", decision=_deny(f"non-canonical-action:{exc}"))
+
+        try:
+            resolved = self._subjects.resolve(request.subject, tenant_id=None, space_id=None)
+        except SubjectResolutionError as exc:
+            return self._finish(request, action_name=action.name, decision=_deny(f"subject:{exc}"))
+        except AuthorizationUnavailable as exc:
+            return self._finish(
+                request, action_name=action.name, decision=_deny(f"authorization-unavailable:{exc}")
+            )
+
+        try:
+            rbac = self._permissions.platform(resolved, action, resource_type=action.resource_type)
+        except AuthorizationUnavailable as exc:
+            return self._finish(
+                request, action_name=action.name, decision=_deny(f"authorization-unavailable:{exc}")
+            )
+
+        from core.policy import PolicyContext
+
+        context = PolicyContext(
+            action=action.name,
+            actor_id=actor_id,
+            tenant_id=request.tenant_id or "",
+            space_id=request.space_id,
+            environment=dict(request.environment),
+            subject_id=resolved.subject.subject_id,
+            subject_type=resolved.subject.subject_type,
+            delegator_id=resolved.subject.delegator_id,
+            resource_type=action.resource_type,
+            resource_id=None,
+            scope="PLATFORM",
+            risk_level=request.risk_level,
+            request_id=request.request_id,
+        )
+        evaluation = self._policy.evaluate(context, request.risk_level)
+
+        if resolved.risk_ceiling is not None:
+            if not is_risk_level(resolved.risk_ceiling) or risk_rank(
+                evaluation.risk_level
+            ) > risk_rank(resolved.risk_ceiling):
+                return self._finish(
+                    request,
+                    action_name=action.name,
+                    decision=Decision(effect="DENY", reason="risk-ceiling-exceeded"),
+                    resolved=resolved,
+                    risk_level=evaluation.risk_level,
+                )
+
+        decision = combine(
+            rbac=rbac,
+            acl=ABSTAIN,
+            policy=evaluation.outcome,
+            approval_required=evaluation.approval_required,
+            policy_failed=evaluation.failed,
+        )
+        return self._finish(
+            request,
+            action_name=action.name,
+            decision=decision,
+            resolved=resolved,
+            risk_level=evaluation.risk_level,
+        )
+
     def _evaluate(self, request, resolved, action, resource, *, actor_id: str) -> Decision:
         if resolved.subject.subject_type == "AGENT":
             agent_outcome = self._permissions.agent(resolved, action, resource)
@@ -189,19 +280,23 @@ class AuthorizationService:
     ) -> Decision:
         subject = resolved.subject if resolved is not None else request.subject
         target = resource or request.resource
+        # P18-D06 (additive): a pre-resource request has no resource instance.
+        # The audit record then carries the declared resource type and no id;
+        # nothing is invented and no existing (resource-bearing) path changes.
         self._audit.record(
             decision=decision,
-            action=action_name or target.type,
+            action=action_name or (target.type if target is not None else "(pre-resource)"),
             resource=target,
             subject_id=subject.subject_id,
             subject_type=subject.subject_type,
-            tenant_id=target.tenant_id or request.tenant_id,
-            space_id=target.space_id or request.space_id,
+            tenant_id=(target.tenant_id if target is not None else None) or request.tenant_id,
+            space_id=(target.space_id if target is not None else None) or request.space_id,
             delegator_id=subject.delegator_id or request.delegator_id,
             actor_id=subject.actor_id or subject.identity_id,
             risk_level=risk_level,
             approval_required=decision.requires_approval,
             request_id=request.request_id,
+            resource_type=(target.type if target is not None else getattr(request.action, "resource_type", None)),
         )
         return decision
 

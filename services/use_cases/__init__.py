@@ -29,9 +29,23 @@ from .identity_runtime import (
     update_space_membership,
     update_tenant_membership,
 )
+from .control_plane import (
+    ProvisionedSpace,
+    ProvisionedTenant,
+    provision_space,
+    provision_tenant,
+    read_space,
+    read_tenant,
+    transition_space,
+    transition_tenant,
+    update_space_metadata,
+    update_tenant_metadata,
+)
 
 __all__ = [
     "LoginResult",
+    "ProvisionedSpace",
+    "ProvisionedTenant",
     "RuntimeActor",
     "authenticate_actor",
     "authenticate_identity",
@@ -51,9 +65,17 @@ __all__ = [
     "logout",
     "mark_device_lost",
     "onboard_identity",
+    "provision_space",
+    "provision_tenant",
+    "read_space",
+    "read_tenant",
     "refresh_session",
     "revoke_device",
     "start_device_enrollment",
+    "transition_space",
+    "transition_tenant",
+    "update_space_metadata",
+    "update_tenant_metadata",
     "update_space_membership",
     "update_tenant_membership",
 ]

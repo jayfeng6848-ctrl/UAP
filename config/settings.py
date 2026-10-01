@@ -44,7 +44,12 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ core
     APP_ENV: str = Field(default="development", description="development | test | staging | production")
     APP_NAME: str = Field(default="UAP", description="Universal AI Platform")
-    APP_VERSION: str = Field(default="0.1.16")
+    APP_VERSION: str = Field(default="0.1.17")
+    #: P18 control-plane DB authority (dedicated ``uap_control`` connection).
+    #: Empty = the control-plane API is not wired in this environment; the
+    #: runtime never borrows this DSN, and the control plane never reads the
+    #: application identity tables (sessions / devices / identities).
+    CONTROL_DATABASE_URL: str = Field(default="")
     APP_HOST: str = Field(default="0.0.0.0")
     APP_PORT: int = Field(default=8000, ge=1, le=65535)
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

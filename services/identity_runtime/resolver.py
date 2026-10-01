@@ -57,6 +57,10 @@ class RuntimeContextResolver:
         tenant_row = self._tenants.get_member_tenant(session, tenant_id=tenant_id, actor_id=actor_id)
         if tenant_row is None:
             raise IdentityRuntimeError(ErrorCode.TENANT_SCOPE_DENIED, "tenant not accessible")
+        # P18-D14: only an ACTIVE tenant may form ordinary runtime context.
+        # (A membership row alone is not active runtime authority.)
+        if str(tenant_row.get("status")) != ACTIVE:
+            raise IdentityRuntimeError(ErrorCode.TENANT_NOT_ACTIVE, "tenant is not active")
 
         space_role_id: str | None = None
         if space_id is not None:
@@ -70,6 +74,9 @@ class RuntimeContextResolver:
             if space_row is None:
                 # visibility / tenant membership never substitute for space membership.
                 raise IdentityRuntimeError(ErrorCode.SPACE_SCOPE_DENIED, "space membership required")
+            # P18-D14: only an ACTIVE space may form ordinary space context.
+            if str(space_row.get("status")) != ACTIVE:
+                raise IdentityRuntimeError(ErrorCode.SPACE_NOT_ACTIVE, "space is not active")
             space_membership = self._memberships.get_space_membership(
                 session, tenant_id=tenant_id, space_id=space_id, user_id=actor_id
             )

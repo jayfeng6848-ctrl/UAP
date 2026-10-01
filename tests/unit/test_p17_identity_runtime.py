@@ -73,8 +73,8 @@ def _tenant_membership(status: str = "active") -> dict:
 
 def _resolver(*, tenants=None, spaces=None, memberships=None) -> RuntimeContextResolver:
     return RuntimeContextResolver(
-        tenants=tenants if tenants is not None else _Tenants(readable={"id": TENANT_A}),
-        spaces=spaces if spaces is not None else _Spaces(belongs=True, visible={"id": SPACE_A1}),
+        tenants=tenants if tenants is not None else _Tenants(readable={"id": TENANT_A, "status": "active"}),
+        spaces=spaces if spaces is not None else _Spaces(belongs=True, visible={"id": SPACE_A1, "status": "active"}),
         memberships=memberships if memberships is not None else _Memberships(_tenant_membership()),
     )
 
@@ -120,7 +120,7 @@ def test_tenant_only_context_is_valid_without_space() -> None:
 
 def test_selected_tenant_is_authoritative_for_a_multi_tenant_user() -> None:
     resolver = _resolver(
-        tenants=_Tenants(readable={"id": TENANT_B}),
+        tenants=_Tenants(readable={"id": TENANT_B, "status": "active"}),
         memberships=_Memberships({**_tenant_membership(), "tenant_id": TENANT_B}),
     )
     context = resolver.resolve(None, actor_id=USER, tenant_id=TENANT_B)
@@ -130,7 +130,7 @@ def test_selected_tenant_is_authoritative_for_a_multi_tenant_user() -> None:
 
 # --------------------------------------------------------------- space scope
 def test_foreign_space_is_denied() -> None:
-    resolver = _resolver(spaces=_Spaces(belongs=False, visible={"id": SPACE_B1}))
+    resolver = _resolver(spaces=_Spaces(belongs=False, visible={"id": SPACE_B1, "status": "active"}))
     with pytest.raises(IdentityRuntimeError) as exc:
         resolver.resolve(None, actor_id=USER, tenant_id=TENANT_A, space_id=SPACE_B1)
     assert exc.value.code == ErrorCode.SPACE_SCOPE_DENIED
@@ -264,7 +264,7 @@ def test_space_membership_rejects_a_space_of_another_tenant() -> None:
 def test_space_membership_rejects_a_tenant_scoped_role() -> None:
     runtime = MembershipRuntime(
         repository=_ValidationRepo(role=_role(scope="TENANT", tenant_id=TENANT_A)),
-        spaces=_Spaces(belongs=True, visible={"id": SPACE_A1}),
+        spaces=_Spaces(belongs=True, visible={"id": SPACE_A1, "status": "active"}),
     )
     with pytest.raises(IdentityRuntimeError) as exc:
         runtime.create_space_membership(
@@ -280,7 +280,7 @@ def test_space_membership_rejects_a_target_outside_the_tenant() -> None:
         repository=_ValidationRepo(
             role=_role(scope="SPACE", space_id=SPACE_A1), target_in_tenant=False
         ),
-        spaces=_Spaces(belongs=True, visible={"id": SPACE_A1}),
+        spaces=_Spaces(belongs=True, visible={"id": SPACE_A1, "status": "active"}),
     )
     with pytest.raises(IdentityRuntimeError) as exc:
         runtime.create_space_membership(

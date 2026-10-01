@@ -30,6 +30,7 @@ from services.identity import (
     IdentityValidationError,
 )
 from services.identity_runtime import ErrorCode as P17ErrorCode, IdentityRuntimeError
+from services.control_plane.errors import ControlPlaneError, ErrorCode as P18ErrorCode
 from services.session import SessionNotUsable, SessionTokenRejected, SessionValidationError
 
 #: P17 codes that are authorization denials (no distinction is exposed to the
@@ -50,6 +51,24 @@ _P17_AUTHORIZATION: frozenset[str] = frozenset(
     }
 )
 
+#: P18 control-plane codes → taxonomy class (no internal detail is exposed).
+_P18_STATUS: dict[str, str] = {
+    P18ErrorCode.AUTHORIZATION_DENIED: "authorization",
+    P18ErrorCode.BOOTSTRAP_REQUIRED: "authorization",
+    P18ErrorCode.TENANT_CONFLICT: "conflict",
+    P18ErrorCode.SPACE_CONFLICT: "conflict",
+    P18ErrorCode.PROVISIONING_CONFLICT: "conflict",
+    P18ErrorCode.LIFECYCLE_CONFLICT: "conflict",
+    P18ErrorCode.INVALID_INPUT: "validation",
+    P18ErrorCode.INITIAL_ADMIN_INVALID: "validation",
+    P18ErrorCode.TENANT_NOT_FOUND: "validation",
+    P18ErrorCode.SPACE_NOT_FOUND: "validation",
+    P18ErrorCode.TENANT_NOT_ACTIVE: "conflict",
+    P18ErrorCode.SPACE_NOT_ACTIVE: "conflict",
+    P18ErrorCode.RESOURCE_PROJECTION_FAILED: "persistence",
+    P18ErrorCode.INITIAL_ROLE_FAILED: "persistence",
+}
+
 #: class -> (status, safe message). The message never carries internal detail.
 HTTP_STATUS: dict[str, tuple[int, str]] = {
     "authentication": (401, "authentication failed"),
@@ -68,6 +87,8 @@ HTTP_STATUS: dict[str, tuple[int, str]] = {
 
 def classify(exc: BaseException) -> str:
     """Map a service/infrastructure exception to a taxonomy class name."""
+    if isinstance(exc, ControlPlaneError):
+        return _P18_STATUS.get(exc.code, "internal")
     if isinstance(exc, IdentityRuntimeError):
         if exc.code in _P17_AUTHORIZATION:
             return "authorization"

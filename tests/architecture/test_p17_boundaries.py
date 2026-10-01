@@ -158,7 +158,14 @@ PROVISIONING_CALLS = (
 )
 
 #: Paths that must never provision a resource (P17-AUTH-Q1: runtime consumes only).
-RUNTIME_PATHS = ("apps", "services/agent", "services/use_cases", "services/identity_runtime")
+#: ``services/use_cases/control_plane.py`` is deliberately **excluded**: it is the
+#: P18 control-plane entry point, the only place allowed to call provisioning.
+RUNTIME_PATHS = (
+    "apps",
+    "services/agent",
+    "services/identity_runtime",
+    "services/use_cases/identity_runtime.py",
+)
 
 
 def test_runtime_paths_never_provision_resources() -> None:
@@ -167,8 +174,15 @@ def test_runtime_paths_never_provision_resources() -> None:
         base = ROOT / package
         if not base.exists():
             continue
-        for path in sorted(base.rglob("*.py")):
+        candidates = [base] if base.is_file() else sorted(base.rglob("*.py"))
+        for path in candidates:
             if "__pycache__" in path.parts:
+                continue
+            # The P18 control-plane surface is the one legitimate caller:
+            # ``/control/...`` (dedicated namespace) and its use-case module.
+            if path.name == "control_plane.py" and (
+                path.parent.name == "routes" or path.parent.name == "use_cases"
+            ):
                 continue
             src = path.read_text(encoding="utf-8")
             for call in PROVISIONING_CALLS:

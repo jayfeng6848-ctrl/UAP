@@ -14,6 +14,7 @@ from fastapi import FastAPI
 
 from apps.api.routes.devices import router as devices_router
 from apps.api.routes.agent_runs import router as agent_runs_router
+from apps.api.routes.control_plane import router as control_plane_router
 from apps.api.routes.health import router as health_router
 from apps.api.routes.identity import router as identity_router
 from apps.api.routes.identity_runtime import router as identity_runtime_router
@@ -21,6 +22,7 @@ from apps.api.routes.meta import router as meta_router
 from apps.api.routes.sessions import router as sessions_router
 from config.settings import Settings, get_settings
 from infrastructure.database.config import DatabaseConfig
+from infrastructure.database.runtime import RuntimeDatabase
 from infrastructure.database.session import reset_engine
 from infrastructure.logging import configure_logging, get_logger
 from infrastructure.runtime.lifecycle import DEFAULT_REQUIRED_ROLE, RuntimeApplication
@@ -61,6 +63,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         require_role=_required_runtime_role(settings),
     )
     app.state.runtime = runtime
+    # P18 / F-P18-I-04 option ①: a dedicated control-plane connection. The
+    # application identity boundary (sessions / devices / identities) is read by
+    # the runtime engine only; structural control-plane execution runs as
+    # ``uap_control`` and never reads those tables.
+    control_database = None
+    if settings.CONTROL_DATABASE_URL:
+        control_database = RuntimeDatabase.from_config(
+            DatabaseConfig(url=settings.CONTROL_DATABASE_URL), require_role="uap_control"
+        )
+        control_database.start()
+    app.state.control_database = control_database
     logger.info(
         "uap.api.startup",
         extra={
@@ -74,6 +87,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if app.state.control_database is not None:
+            app.state.control_database.dispose()
+        app.state.control_database = None
         app.state.runtime = None
         runtime.stop()
         reset_engine()
@@ -105,6 +121,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(devices_router)
     app.include_router(sessions_router)
     app.include_router(agent_runs_router)
+    app.include_router(control_plane_router)
     return app
 
 

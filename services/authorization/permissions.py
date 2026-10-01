@@ -154,6 +154,60 @@ class PermissionResolver:
             return LayerOutcome(allow=True, reasons=tuple(allows))
         return LayerOutcome()
 
+    # ----------------------------------------------------- pre-resource (P18)
+    def platform(
+        self, resolved: ResolvedSubject, action: Action, *, resource_type: str
+    ) -> LayerOutcome:
+        """Platform-scope grants for a **pre-resource** structural operation.
+
+        P18-D06: a structural operation (tenant/space provisioning) has no
+        resource row yet, so the decision is taken on the platform scope alone.
+        Only ``PLATFORM``-scope grants are eligible — a tenant- or space-scoped
+        grant can never authorize a platform-level structural operation — and
+        the permission must match both the requested action and the resource
+        type the caller declared.
+
+        This is additive: it is only reached through the explicit
+        ``resource is None`` entry point of ``AuthorizationService``. Every
+        existing (resource-bearing) call path is unchanged, no new resource
+        grammar is introduced and no permission or role is invented.
+        """
+        if not resolved.role_ids:
+            return LayerOutcome()
+
+        role_scope: dict[str, Grant] = dict(zip(resolved.role_ids, resolved.grants))
+
+        try:
+            rows = self._repository.role_grants(resolved.role_ids)
+        except AuthorizationUnavailable:
+            raise
+        except Exception as exc:  # pragma: no cover - infrastructure failure
+            raise AuthorizationUnavailable(str(exc)) from exc
+
+        allows: list[str] = []
+        denies: list[str] = []
+        for row in rows:
+            mapping = row._mapping
+            grant = role_scope.get(str(mapping["role_id"]))
+            if grant is None or grant.scope != "PLATFORM":
+                continue
+            if not _same_action(mapping["action"], action):
+                continue
+            declared = mapping["resource_type"]
+            if declared is not None and str(declared) != resource_type:
+                continue
+            reason = f"{mapping['key']}:{action.name}"
+            if str(mapping["effect"]) == "deny":
+                denies.append(reason)
+            else:
+                allows.append(reason)
+
+        if denies:
+            return LayerOutcome(deny=True, reasons=tuple(denies))
+        if allows:
+            return LayerOutcome(allow=True, reasons=tuple(allows))
+        return LayerOutcome()
+
     # ------------------------------------------------------------------- ACL
     def acl(
         self, resolved: ResolvedSubject, action: Action, resource: ResourceRef

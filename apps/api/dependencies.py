@@ -24,6 +24,22 @@ def get_database(request: Request) -> RuntimeDatabase:
     return get_runtime(request).database
 
 
+def get_control_database(request: Request) -> RuntimeDatabase:
+    """The dedicated ``uap_control`` connection (P18-D01 / F-P18-I-04 option ①).
+
+    Authentication stays on the application/runtime identity; only structural
+    control-plane execution runs here. When the environment has no control DSN
+    the control API is unavailable rather than silently borrowing another
+    principal.
+    """
+    from fastapi import HTTPException
+
+    database: RuntimeDatabase | None = getattr(request.app.state, "control_database", None)
+    if database is None:
+        raise HTTPException(status_code=503, detail="service temporarily unavailable")
+    return database
+
+
 def bearer_token(request: Request) -> str | None:
     header = request.headers.get("authorization")
     if not header:
@@ -35,4 +51,4 @@ def bearer_token(request: Request) -> str | None:
     return token or None
 
 
-__all__ = ["bearer_token", "get_database", "get_runtime"]
+__all__ = ["bearer_token", "get_control_database", "get_database", "get_runtime"]

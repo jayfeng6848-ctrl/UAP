@@ -38,9 +38,10 @@ class AuditBoundary:
         *,
         decision: Decision,
         action: str,
-        resource: ResourceRef,
+        resource: ResourceRef | None = None,
         subject_id: str,
         subject_type: str,
+        resource_type: str | None = None,
         tenant_id: str | None = None,
         space_id: str | None = None,
         delegator_id: str | None = None,
@@ -49,12 +50,17 @@ class AuditBoundary:
         approval_required: bool = False,
         request_id: str | None = None,
     ) -> AuthorizationDecisionAudit:
+        # P18-D06 (additive): a pre-resource decision has no resource instance.
+        # The record then carries the caller-declared resource type and no id —
+        # audit shape is preserved without inventing a resource.
+        type_name = resource.type if resource is not None else (resource_type or "(pre-resource)")
+        id_value = resource.id if resource is not None else ""
         entry = AuthorizationDecisionAudit(
             subject_id=subject_id,
             subject_type=subject_type,
             action=action,
-            resource_type=resource.type,
-            resource_id=resource.id,
+            resource_type=type_name,
+            resource_id=id_value,
             decision=decision.effect,
             reason=decision.reason,
             tenant_id=tenant_id,

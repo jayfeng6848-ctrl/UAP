@@ -43,6 +43,27 @@ class AgentScopeRepository:
         ).one_or_none()
         return dict(row._mapping) if row is not None else None
 
+    def tenant_status(self, session: Session, *, tenant_id: str) -> str | None:
+        from sqlalchemy import text
+
+        row = session.execute(
+            text("SELECT status FROM tenants WHERE id = CAST(:t AS uuid)"),
+            {"t": tenant_id},
+        ).one_or_none()
+        return str(row[0]) if row is not None else None
+
+    def space_status(self, session: Session, *, tenant_id: str, space_id: str) -> str | None:
+        from sqlalchemy import text
+
+        row = session.execute(
+            text(
+                "SELECT status FROM spaces WHERE id = CAST(:s AS uuid)"
+                " AND tenant_id = CAST(:t AS uuid)"
+            ),
+            {"s": space_id, "t": tenant_id},
+        ).one_or_none()
+        return str(row[0]) if row is not None else None
+
 
 @dataclass(frozen=True)
 class AgentBinding:
@@ -110,9 +131,44 @@ def resolve_agent_execution_context(
     return context, binding
 
 
+#: Lifecycle states that may admit an ordinary runtime operation (P18-D14).
+ACTIVE_STATE = "active"
+
+
+def require_active_agent_scope(
+    session: Session,
+    *,
+    agent_id: str,
+    tenant_id: str,
+    space_id: str | None = None,
+    resolver: AgentScopeResolver | None = None,
+    repository: AgentScopeRepository | None = None,
+) -> AgentBinding:
+    """P18-D14 gate: an agent may only run inside an ACTIVE tenant/space.
+
+    Reuses the P17 agent-scope resolution (tenant-scoped agent lookup + space
+    binding) and adds the lifecycle condition. An inactive tenant (or an inactive
+    bound space) is a denial — it never becomes an agent-run admission, and it
+    never falls back to a platform or owner scope.
+    """
+    binding = (resolver or AgentScopeResolver()).resolve(
+        session, agent_id=agent_id, tenant_id=tenant_id, space_id=space_id
+    )
+    repo = repository or AgentScopeRepository()
+    if repo.tenant_status(session, tenant_id=binding.tenant_id) != ACTIVE_STATE:
+        raise IdentityRuntimeError(ErrorCode.TENANT_NOT_ACTIVE, "tenant is not active")
+    if binding.space_id is not None:
+        if repo.space_status(
+            session, tenant_id=binding.tenant_id, space_id=binding.space_id
+        ) != ACTIVE_STATE:
+            raise IdentityRuntimeError(ErrorCode.SPACE_NOT_ACTIVE, "space is not active")
+    return binding
+
+
 __all__ = [
     "AgentBinding",
     "AgentScopeRepository",
     "AgentScopeResolver",
+    "require_active_agent_scope",
     "resolve_agent_execution_context",
 ]

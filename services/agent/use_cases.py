@@ -61,6 +61,22 @@ def run_agent(
     input_text: str,
     request_id: str | None = None,
 ) -> RunOutcome:
+    # P18-D14 admission gate (additive): an agent may only run inside an ACTIVE
+    # tenant/space. Active scope keeps the P16 behaviour byte-for-byte; an
+    # inactive scope is refused before the run is admitted, and the refusal never
+    # falls back to an owner/platform scope.
+    from core.agent import AgentRuntimeError, ErrorCode
+    from services.identity_runtime import IdentityRuntimeError, require_active_agent_scope
+
+    with db.transaction() as session:
+        try:
+            require_active_agent_scope(
+                session, agent_id=agent_id, tenant_id=tenant_id, space_id=space_id
+            )
+        except IdentityRuntimeError as exc:
+            raise AgentRuntimeError(
+                ErrorCode.AUTHORIZATION_DENIED, "agent scope lifecycle gate denied"
+            ) from exc
     return build_runtime(db).run(
         agent_id=agent_id,
         actor_type=actor_type,

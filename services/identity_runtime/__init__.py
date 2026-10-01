@@ -10,6 +10,7 @@ from .agent_scope import (
     AgentBinding,
     AgentScopeRepository,
     AgentScopeResolver,
+    require_active_agent_scope,
     resolve_agent_execution_context,
 )
 from .authorization import MembershipAuthorizer, safe_reason_code
@@ -33,6 +34,7 @@ __all__ = [
     "MembershipResourceRepository",
     "MembershipRuntime",
     "ResolvedContext",
+    "require_active_agent_scope",
     "RuntimeContextResolver",
     "SpaceRepository",
     "TenantRepository",

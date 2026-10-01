@@ -5344,3 +5344,261 @@ P18                = NOT STARTED
 ```
 
 **END OF PLATFORM_DECISION_LOG（P17 AUTHORIZATION GAP RESOLUTION · 附录 X（append-only）· P17-AUTH-01 = OPTION A · Q1 = Control Plane/Bootstrap resource provisioning · Q2 = admin single action · Q3 = platform + tenant + space scoped · Q4 = non-interchangeable · Q5 = tenant + space membership required · F-P17-I-01/02/03 = RESOLVED · 附录 A–W 零改写 · permissions 保持 12 · migration = NONE · runtime privilege delta = 0 · 未 commit / tag / push；2026-10-01）**
+
+---
+
+# 附录 Y — P18 PREP STAGE REGISTRATION（PLATFORM CONTROL PLANE / TENANT-SPACE LIFECYCLE · 2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–X；不删除；不重排；**本附录不冻结任何 P18 决策**。
+
+## Y.1 登记性质
+
+```text
+性质      = PREP STAGE REGISTRATION（非 Decision Freeze）
+依据      = P18 HUMAN DECISION + PREP 指令（PREP ONLY）
+产物      = docs/architecture/P18_HUMAN_DECISION_PREP.md
+            docs/architecture/P18_DEPENDENCY_MAP.md
+            docs/architecture/P18_CONTROL_PLANE_TENANT_SPACE_LIFECYCLE_IMPLEMENTATION_CONTRACT.md（SKELETON）
+基线      = UAP-V0.1.16-P17-IDENTITY-TENANT-SPACE-RUNTIME（commit 9fe282b0 · tree de420083）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威）
+冻结状态  = P18 DECISION FREEZE = NOT YET
+```
+
+## Y.2 勘验结论（只读实测 · 事实登记）
+
+```text
+1  Runtime（uap_runtime）= 56 grants；tenants/spaces = SELECT only；仓库内无任何 runtime 结构写路径
+2  uap_bootstrap = LOGIN 主体，但仅持有：audit_logs INSERT · platform_memberships INSERT/SELECT ·
+   platform_state SELECT/UPDATE —— **不具备 tenants / spaces / resources 写权限**
+   （§8 结论：不得以主体名称推断授权）
+3  uap_migrator = 14 张业务表的 owner（245 grants）= schema authority，不得作为运营控制面主体
+4  uap_app = 5 grants（就绪/审计）· uap_seed = 0 grants（无引用）
+5  uap_bootstrap / uap_seed 的授权在 migrations 与 scripts 中**均无版本化来源**（环境态）
+6  tenants：status ∈ {provisioning, active, suspended, archived, deleted}；**无 owner 列**；
+   spaces/resources 对 tenants 为 ON DELETE RESTRICT；roles/memberships 为 CASCADE
+7  spaces：status ∈ {active, archived, deleted}（**无 provisioning / suspended**）；
+   tenant_id NOT NULL + FK RESTRICT ⇒ Space 不能脱离 Tenant 存在
+8  roles：仅 1 行 platform_admin（PLATFORM · is_system=true）⇒ 平台不存在 eligible TENANT/SPACE 角色
+9  tenant_memberships 触发器要求 active 的同租户 TENANT 角色；memberships 要求 active 的同空间 SPACE 角色
+10 roles 触发器禁止运行期创建 is_system=true 角色，且 system 行不可变
+11 platform_state = 单例 · 仅允许一次 uninitialized → initialized；当前 uninitialized
+12 platform_memberships：PM bootstrap gate + role scope + last-admin 保护；当前 0 行
+13 audit_logs = append-only（UPDATE/DELETE 一律拒绝）；无结构外键 ⇒ 历史事实不随删除消失
+14 permission 词表 = 12（未变）· role_permissions = 12（全部属 platform_admin）
+15 Formal DB（uap）= 0 public 表 · prestate == poststate（PREP 期间未触碰）
+```
+
+## Y.3 STOP 命中（需 Human Decision · 本轮不自行解决）
+
+```text
+STOP-1  控制面结构写权限 = 新 privilege surface（uap_bootstrap 无 tenants/spaces/resources 写）
+STOP-2  平台不存在 eligible TENANT/SPACE 角色 ⇒ 首个租户/空间管理员无法成立（需角色 provisioning 决定）
+STOP-3  控制面主体（uap_bootstrap/uap_seed）授权无可重现来源 ⇒ 需版本化物化决定
+STOP-4  spaces.status 缺 provisioning/suspended ⇒ 若需要该语义则为 schema gap（PREP 不得建 migration）
+```
+
+## Y.4 待裁定决策索引（NOT FROZEN）
+
+```text
+D01 控制面 DB 主体        D02 生命周期状态机（含删除语义）   D03 首个 tenant 管理员
+D04 首个 space 管理员      D05 角色 provisioning 权限         D06 控制面授权模型
+D07 平台一次性初始化        D08 幂等策略                       D09 事务/失败原子性
+D10 API 表面              D11 审计与关联                     D12 事件边界
+D13 权限与安全基线（含是否收窄 uap_runtime 的 resources 写）
+OQ-01…OQ-22（见 P18_HUMAN_DECISION_PREP.md §11）
+```
+
+## Y.5 本轮边界（未越界声明）
+
+```text
+未实现任何代码 · 未创建 migration / 表 · 未 DML / GRANT / REVOKE · 未激活 event/handler
+未修改 P13–P17 冻结语义 · 未 commit / tag / push · 附录 A–X 零改写
+Formal DB（uap）保持不变 · Production Event Allowlist = EMPTY · Handlers = 0 · Core → Domain = 0
+```
+
+## Y.6 后续 Gate
+
+```text
+P18 HUMAN DECISION FREEZE = 需新的独立指令（本附录不授权）
+P18 Implementation        = NOT AUTHORIZED
+P18 Acceptance / Release  = NOT STARTED / NOT AUTHORIZED
+P19 / Business Modules    = NOT STARTED
+```
+
+**END OF PLATFORM_DECISION_LOG（P18 PREP STAGE REGISTRATION · 附录 Y（append-only）· P18 DECISION FREEZE = NOT YET · STOP-1…4 登记待裁定 · D01…D13 / OQ-01…22 索引 · 附录 A–X 零改写 · 未实现 / 未 migration / 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 Z — P18 HUMAN DECISION FREEZE（PLATFORM CONTROL PLANE / TENANT-SPACE LIFECYCLE · 2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–Y；不删除；不重排；本附录**冻结** P18 决策。
+
+## Z.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（正式冻结）
+依据      = P18 HUMAN DECISION + PREP 指令 → P18 HUMAN DECISION FREEZE 指令
+           + P18_HUMAN_DECISION_PREP.md（勘验）· P18_CONTROL_PLANE_GAP_RECORD.md（缺口与裁定）
+基线      = UAP-V0.1.16-P17-IDENTITY-TENANT-SPACE-RUNTIME（commit 9fe282b0 · tree de420083）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威 · 不新建平行决策系统）
+结果      = P18 DECISION FREEZE = PASSED · P18 IMPLEMENTATION = AUTHORIZED（本轮不启动）
+```
+
+## Z.2 P18 Decisions（FROZEN）
+
+```text
+P18-D01 Control-Plane DB Principal = dedicated new principal「uap_control」
+          （不复用 uap_bootstrap / uap_runtime / uap_app / uap_migrator）
+P18-D02 Tenant Discovery/Lifecycle   = 既有 schema 状态 + soft lifecycle
+          （provisioning→active；active↔suspended；active/suspended→archived；archived→active；
+            archived→deleted；deleted = terminal；Tenant physical DELETE = NEVER in P18）
+P18-D03 First Tenant Admin           = 显式必需输入 initial_admin_user_id（exists + active；
+          不要求已属 tenant / 不要求 platform membership；不得由 owner/actor/platform_admin 自动推断）
+P18-D04 First Space Admin            = 显式必需输入 initial_space_admin_user_id
+          （exists + active + 已是目标 tenant 有效成员；不得自动创建 tenant membership）
+P18-D05 Role Provisioning            = 仅 bootstrap 非 system 作用域管理员角色
+          （tenant/space administrator；绑定既有 member.read/member.admin（+tenant.admin/space.admin）；
+           No new permissions；角色 provisioning 后不可变；retry 需 exactly matching 否则 CONFLICT）
+P18-D06 Control-Plane Authorization  = platform_admin-only（第一版）
+          （唯一引擎 = 既有 AuthorizationService；pre-resource 授权 = platform scope + resource=None；
+           若引擎无法表达则仅允许最小 additive capability 且须先以真实 DB 证明，否则 STOP）
+P18-D07 Platform Bootstrap           = 既有一次性 bootstrap 保持不变
+          （platform_state = uninitialized ⇒ 结构 provisioning = DENY；不得自动初始化；
+           platform_memberships 不在 P18 生命周期 API 内；不扩大 uap_bootstrap；last-admin 保护不变）
+P18-D08 Idempotency                  = natural-key idempotency + exact-match replay + conflict on mismatch
+          （不新增 dedup / idempotency_keys 表）
+P18-D09 Atomicity                    = ONE LOGICAL TRANSACTION + atomic audit
+          （resource/role/role_permissions/membership/audit/DB 任一失败 ⇒ 全量回滚；无 orphan）
+P18-D10 Control-Plane API            = authenticated dedicated control-plane namespace
+          （不进 P17 runtime 命名空间；无物理 DELETE 端点；不做通用 CRUD；防枚举）
+P18-D11 Audit                        = 全部安全敏感结构操作审计 · actor = 真实认证平台主体
+          （DB principal 不替代 actor；含 target/tenant/space/operation/before-after/correlation/timestamp）
+P18-D12 Event                        = Production Event Activation = REJECT
+          （Allowlist = EMPTY · Handlers = 0；tenant/space 事件不激活，audit 足够）
+P18-D13 Security/Privilege Baseline  = 专用最小权限面 + 不扩大 uap_runtime
+          （uap_control 写面：tenants I/U · spaces I/U · roles I · role_permissions I ·
+            tenant_memberships I · memberships I · resources I · audit_logs I；**无任何 DELETE**；
+            禁止 permissions/resource_permissions/platform_*/identity/session/device/ai/tool/events 写；
+            读面由实际 repository 查询图推导，禁止 SELECT ON ALL TABLES；
+            全部授权必须版本化可审计，复用 scripts/privileges 机制）
+P18-D14 Derived Runtime Rule         = 仅 ACTIVE Tenant / ACTIVE Space 可建立正常运行时上下文
+          （顺序：lifecycle/context gate → existing authorization；Agent Run admission 同样受 gate；
+           membership runtime 在非 ACTIVE 时 DENY；不删除历史）
+```
+
+## Z.3 Q Resolutions（FROZEN）
+
+```text
+Q14 multi-tenant provisioning = 一个平台管理员可 provisioning 多个 tenant（无 one-user-one-tenant 限制）
+Q15 space provisioning        = platform_admin 可在任意既有 tenant 内 provisioning space；
+                                tenant admin 在 P18 **不可**创建 space（留待未来控制面授权扩展）
+Q16 tenant suspension         = tenant suspended ⇒ 常规运行时不可用（P17 context / membership mutation /
+                                P16 Agent Run admission / ordinary space runtime）；
+                                platform_admin 仍可 restore / archive / inspect（控制面不依赖 runtime context）
+Q17 membership after suspend  = memberships 保留 · 运行时 mutation = DENY · 不批量删除
+Q18 space suspension          = P18 不定义（schema 不支持）⇒ space 状态保持 active/archived/deleted
+Q19 archived/deleted space    = P17 space membership 操作 = DENY · membership 行保留 · 不 cascade cleanup
+Q20 resource deletion         = resources 保留 · 控制面只 INSERT projection · 不 DELETE · 不做 GC
+```
+
+## Z.4 STOP 解决登记（PREP → FREEZE）
+
+```text
+STOP-1（新结构写权限面）        = RESOLVED（dedicated uap_control · 最小写面 · 无 DELETE）
+STOP-2（无 eligible 角色）      = RESOLVED（bootstrap 创建非 system 作用域管理员角色 + 既有 permission 绑定）
+STOP-3（授权无可重现来源）      = RESOLVED（全部控制面授权必须版本化 · 复用 scripts/privileges）
+STOP-4（space schema gap）      = RESOLVED（P18 不引入 space provisioning/suspended ⇒ 无 schema gap）
+STOP-5（控制面授权模型）        = RESOLVED（platform scope + resource=None · 既有 AuthorizationService）
+original observation 保留       = P18_CONTROL_PLANE_GAP_RECORD.md §1/§2（未删除、未改写）
+```
+
+## Z.5 安全债登记
+
+```text
+F-P18-S-01 Residual uap_runtime resource write privilege（P14 遗留 resources INSERT/UPDATE）
+           状态 = DEFERRED HARDENING DEBT · NOT A P18 ACCEPTANCE BLOCKER
+           约束 = P18 运行时实现不得使用 · 不是权限扩张 · 本版不撤销
+           原因 = 避免改变 P14/P15/P16 历史安全指纹与历史测试；不与 control-plane lifecycle 混为一版
+未来独立 hardening decision 处理
+```
+
+## Z.6 本轮边界（未越界声明）
+
+```text
+未实现任何代码 · 未创建 uap_control role / GRANT · 未建 migration（head 保持 0018）· 未建表 ·
+未 DML · 未激活 event/handler · 未修改 P13–P17 冻结语义 · 未 commit / tag / push
+附录 A–Y 零改写（仅 append 本附录）· Formal DB（uap）= prestate == poststate
+```
+
+## Z.7 后续 Gate
+
+```text
+P18 Implementation = AUTHORIZED（本轮 NOT STARTED）
+实现第 1 步必须：证明既有 AuthorizationService 可执行 platform scope + resource=None 授权，
+                 并核验 role/role_permissions/resource schema 与版本化授权路径；否则 STOP
+P18 Acceptance / Release = NOT STARTED / NOT AUTHORIZED
+P19 / Business Modules / Event Activation = NOT STARTED
+```
+
+**END OF PLATFORM_DECISION_LOG（P18 HUMAN DECISION FREEZE · 附录 Z（append-only）· P18-D01…D14 + Q14…Q20 = FROZEN · STOP-1…5 = RESOLVED · F-P18-S-01 登记为 deferred hardening debt · uap_runtime 保持 56 · migration = NONE · 附录 A–Y 零改写 · 未实现 / 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 AA — P18 CONTROL-PLANE AUTHORIZATION CLARIFICATION（2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–Z；不删除；不重排；本附录为 Human Decision 的**明文澄清**。
+
+## AA.1 登记性质
+
+```text
+性质      = HUMAN DECISION CLARIFICATION（对 P18-D06 的语义澄清 · 非修改）
+依据      = P18 IMPLEMENTATION（Wave 3→4→D14）指令 §1–§4「F-P18-I-03 CONSISTENCY GATE」
+            + 实测证据（uap_control 对 resource_permissions / acl_subject_types 无任何权限；
+              canonical 引擎 ACL 层必然读取该两表 ⇒ 资源侧授权在冻结 ceiling 下不可执行）
+裁定      = B′（由 Human 明文选择）
+基线      = UAP-V0.1.16-P17-IDENTITY-TENANT-SPACE-RUNTIME（commit 9fe282b0）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威）
+```
+
+## AA.2 冻结澄清（FROZEN）
+
+```text
+P18-AUTH-CLARIFICATION-01
+  Control Plane 的**所有**授权决策一律采用 PLATFORM scope；
+  resource / object identity 仅作为**审计与用例上下文**，不参与资源侧授权决策。
+
+即：
+  · 对象创建前  → canonical AuthorizationService + platform scope + resource = None
+                  + 调用方显式声明的 resource_type（P18-D06 既有冻结形式）
+  · 对象已存在后 → **同一形式**：platform scope + resource = None
+                  （对象身份由 use-case 在同一事务内校验：存在性 · 归属 · 状态；
+                    resource id 仅用于审计关联）
+
+约束（同时冻结）：
+  · 不得为 uap_control 新增 ACL 读取权限（resource_permissions / acl_subject_types 保持绝对禁止）
+  · 不得引入第二授权主体 / 第二授权引擎
+  · 不得改造 uap_control privilege ceiling（保持 23 grants 的冻结基线）
+  · 不得以 role name 判定、不得 platform_admin fallback、不得绕过 canonical 引擎
+```
+
+## AA.3 与既有决策的关系
+
+```text
+P18-D06（platform_admin-only control-plane authorization）语义不变；本附录仅澄清其**表达形式**
+  在"对象已存在"场景下同样使用 platform scope，从而与本决策链一致：
+  · D13 冻结的读面 ceiling **不含** ACL 两表  ⇒ 控制面决策不读 ACL（本澄清与该 ceiling 相符）
+  · §48/§49（uap_control 绝对禁止面）不变
+  · P17 runtime 的成员/上下文授权语义不变（仍为 canonical resource 侧授权）
+F-P18-I-03 CONSISTENCY BLOCKER = RESOLVED BY HUMAN DECISION（本附录）
+```
+
+## AA.4 实现后果
+
+```text
+`services/use_cases/control_plane.py::_authorize` 对所有控制面操作使用
+platform scope + resource=None 的形态**自此被认定为合规**（此前处于"未认定"状态）；
+其 resource_id / tenant_id / space_id 参数仅用于审计与 use-case 上下文。
+Wave 3（metadata/visibility）→ Wave 4（Control API）→ D14（Agent gate）→ Wave 5 恢复执行。
+```
+
+**END OF PLATFORM_DECISION_LOG（P18 CONTROL-PLANE AUTHORIZATION CLARIFICATION · 附录 AA（append-only）· P18-AUTH-CLARIFICATION-01 = FROZEN · F-P18-I-03 = RESOLVED BY HUMAN DECISION · 附录 A–Z 零改写 · 未新增 privilege / 未新增主体 / 未改 ceiling · 未 commit / 未 tag / 未 push；2026-10-01）**

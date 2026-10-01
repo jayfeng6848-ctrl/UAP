@@ -1,6 +1,6 @@
 [project]
 name = "uap"
-version = "0.1.16"
+version = "0.1.17"
 description = "Universal AI Platform - business-agnostic agent platform core"
 requires-python = ">=3.13"
 dependencies = [
