@@ -29,7 +29,26 @@ from services.identity import (
     IdentityNotUsable,
     IdentityValidationError,
 )
+from services.identity_runtime import ErrorCode as P17ErrorCode, IdentityRuntimeError
 from services.session import SessionNotUsable, SessionTokenRejected, SessionValidationError
+
+#: P17 codes that are authorization denials (no distinction is exposed to the
+#: caller between "not a member", "wrong scope", "no permission" and
+#: "not provisioned": all are the same safe 403 · P17 §40/§46).
+_P17_AUTHORIZATION: frozenset[str] = frozenset(
+    {
+        P17ErrorCode.TENANT_SCOPE_DENIED,
+        P17ErrorCode.SPACE_SCOPE_DENIED,
+        P17ErrorCode.MEMBERSHIP_REQUIRED,
+        P17ErrorCode.ROLE_SCOPE_MISMATCH,
+        P17ErrorCode.AUTHORIZATION_DENIED,
+        P17ErrorCode.RESOURCE_NOT_PROVISIONED,
+        P17ErrorCode.AGENT_SCOPE_DENIED,
+        P17ErrorCode.AGENT_SPACE_SCOPE_DENIED,
+        P17ErrorCode.CONTROL_PLANE_WRITE_DENIED,
+        P17ErrorCode.AUDIT_UNAVAILABLE,
+    }
+)
 
 #: class -> (status, safe message). The message never carries internal detail.
 HTTP_STATUS: dict[str, tuple[int, str]] = {
@@ -49,6 +68,12 @@ HTTP_STATUS: dict[str, tuple[int, str]] = {
 
 def classify(exc: BaseException) -> str:
     """Map a service/infrastructure exception to a taxonomy class name."""
+    if isinstance(exc, IdentityRuntimeError):
+        if exc.code in _P17_AUTHORIZATION:
+            return "authorization"
+        if exc.code == P17ErrorCode.MEMBERSHIP_DUPLICATE:
+            return "conflict"
+        return "validation"
     if isinstance(exc, (CredentialRejected, SessionTokenRejected, SessionNotUsable,
                         IdentityNotUsable, DeviceNotUsable, ChallengeRejected)):
         return "authentication"

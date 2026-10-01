@@ -5198,3 +5198,149 @@ P16 RELEASE PREPARATION → P16 COMMIT + TAG GATE → P16 REMOTE PUSH GATE
 ```
 
 **END OF PLATFORM_DECISION_LOG（P16 HUMAN DECISION FREEZE · 附录 V（append-only）· P16-D01…D14 = FROZEN（D08 = REJECT production event activation）· Governance Reconciliation = ACCEPT（旧 AGENT_RUNTIME_* 不复活）· 附录 A–U 零改写 · Production Allowlist = EMPTY · Schema 扩展仅限 agent_runs（D12 LIMITED）· 未执行任何 code / migration / DB mutation / commit / tag / push；2026-09-28）**
+
+---
+
+# 附录 W — P17 HUMAN DECISION FREEZE（PLATFORM IDENTITY / TENANT / SPACE RUNTIME · 2026-10-01 · canonical registration）
+
+> **append-only**：不改写 `D-*`；不改写附录 A–V；不删除；不重排。
+
+## W.1 登记性质
+
+```text
+性质      = append-only 追加登记（附录 A–V 零改写）
+依据      = P17 HUMAN DECISION PREP（P17_HUMAN_DECISION_PREP.md）+ Human Decision
+基线      = UAP-V0.1.15-P16-AGENT-RUNTIME = RELEASED
+            HEAD = origin/main = 42a4f61c20fe119af77ab822e24c8028ce653e3d
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威 · 不新建平行 decision system）
+权限声明  = 本附录 ≠ P17 Implementation Authorization 之外的任何 release 授权
+```
+
+## W.2 P17 Decisions（FROZEN）
+
+```text
+P17-D01 Runtime Ownership      = A（现有 uap_runtime · 不新建 role）
+P17-D02 Schema Strategy        = A（复用现有 schema · NO NEW TABLE · migration = NONE）
+P17-D03 Identity Runtime Scope = A（subject/tenant/space/membership runtime · 复用既有 identity
+                                  /session/device/context/authorization · P17 ≠ IAM product）
+P17-D04 Role Assignment Level  = C（tenant + space；role scope 必须与 membership scope 一致）
+P17-D05 Multi-Tenant Membership= B（user 可属多个 tenant；users.tenant_id 保持 NULL）
+P17-D06 Cross-Tenant Behavior  = A（DENY by default · 无隐式/默认/platform tenant fallback）
+P17-D07 Space Isolation        = B（需显式 space membership；tenant membership ≠ 全部 space）
+P17-D08 Agent Context          = B（agents.tenant_id / agents.space_id 显式解析；
+                                  Agent ≠ User · 无 owner 权限继承）
+P17-D09 Session / Auth         = A（OUT；只消费既有 identity/session/device/context）
+P17-D10 API Scope              = C（tenant/space = READ；membership = READ + WRITE；
+                                  tenant/space create/update/delete = OUT）
+P17-D11 Audit                  = A（identity/membership 安全敏感变更全部审计）
+P17-D12 Event Activation       = REJECT（Allowlist = EMPTY · Handlers = 0）
+P17-D13 Schema Expansion       = A（no new tables · migration = NONE）
+P17-D14 Testing Strategy       = security-first explicit test matrix（正/负路径 + 多租户隔离 +
+                                  least privilege + formal DB unchanged + Core → Domain = 0）
+```
+
+## W.3 OQ Resolutions（FROZEN）
+
+```text
+OQ-01 tenant 写操作 = RESOLVED / CONTROL-PLANE（不属于 uap_runtime P17 责任；未来 control-plane decision）
+OQ-02 space  写操作 = RESOLVED / CONTROL-PLANE（同上）
+OQ-03 默认策略      = RESOLVED / DENY BY DEFAULT（membership 缺失 / tenant mismatch /
+                      space mismatch / role scope mismatch ⇒ DENY；不得以 visibility · owner_id ·
+                      platform state · 客户端提供的 ID 替代 membership authorization）
+OQ-04 visibility    = RESOLVED / VISIBILITY ≠ AUTHORIZATION（仅呈现/可发现性元数据）
+OQ-05 platform_memberships = RESOLVED / READ ONLY（mutation 属 control-plane / bootstrap）
+OQ-06 is_system     = RESOLVED / SYSTEM IMMUTABLE（system permission / role / seed 不得被 P17 修改）
+OQ-07 resource_permissions = RESOLVED / READ ONLY（ACL administration = 独立 Human Decision）
+OQ-08 membership 删除 = RESOLVED / AUDITED DELETE（审计事实不得依赖已被删除的 membership row）
+```
+
+## W.4 边界与不变式（摘要 · 完整清单见 P17 Implementation Contract）
+
+```text
+Tenant / Space 结构写 = OUT OF P17 uap_runtime（P17 new runtime privileges = 0）
+Membership 写         = IN（tenant_memberships / memberships · 现有 grant 已覆盖）
+Authorization         = EXISTING CANONICAL PATH（不新增第二套 authorization engine）
+Context Resolver      = identity/context resolution ≠ authorization ALLOW
+Cross-tenant / cross-space = DENY BY DEFAULT
+membership mutation + audit 必须具备可审计结果（不得 best-effort 后放行）
+Production Event Allowlist = EMPTY · Production Handlers = 0
+Core → Domain = 0 · Formal DB（uap）= 只读
+```
+
+## W.5 后续 Gate
+
+```text
+P17 Implementation Contract = docs/architecture/P17_IDENTITY_TENANT_SPACE_RUNTIME_IMPLEMENTATION_CONTRACT.md
+P17 Implementation           = 需新的独立指令启动（本附录不授权 implementation / commit / tag / push）
+P18                          = NOT STARTED
+```
+
+**END OF PLATFORM_DECISION_LOG（P17 HUMAN DECISION FREEZE · 附录 W（append-only）· P17-D01…D14 = FROZEN · OQ-01…08 = RESOLVED · NO NEW TABLE · migration = NONE · new runtime privileges = 0 · tenant/space write = control-plane · membership write = IN · cross-tenant / cross-space = DENY BY DEFAULT · Production Allowlist = EMPTY · 附录 A–V 零改写 · 未执行任何 implementation / migration / DB mutation / commit / tag / push；2026-10-01）**
+
+---
+
+# 附录 X — P17 AUTHORIZATION GAP RESOLUTION（2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–W；不删除；不重排；不改写 P17-D01…D14。
+
+## X.1 登记性质
+
+```text
+性质      = append-only 追加登记（附录 A–W 零改写）
+依据      = P17 IMPLEMENTATION 阶段发现的 F-P17-I-01 / I-02 / I-03
+            + P17_MEMBERSHIP_AUTHORIZATION_GAP_RECORD.md（原始 observation 保留）
+            + Human Decision（同日裁定 OPTION A）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威）
+作用      = 解除 Wave 3 STOP-2 / STOP-3；不等于 Release 授权
+```
+
+## X.2 冻结裁定
+
+```text
+P17-AUTH-01 = OPTION A（复用既有 12 canonical permissions · 不扩展 P13 permission registry）
+P17-AUTH-Q1 = Control Plane / Bootstrap 在 provisioning 时创建 canonical resources rows
+              （object creation + resource projection = 同一 logical transaction；
+                resource row absent ⇒ authorization 永不 ALLOW ⇒ DENY）
+P17-AUTH-Q2 = admin 单动作（read/list → member.read；create/update/delete → member.admin）
+P17-AUTH-Q3 = platform_admin + tenant-scoped roles + space-scoped roles
+P17-AUTH-Q4 = scope 不互通（tenant 角色不自动授权 space 成员管理；反之亦然）
+P17-AUTH-Q5 = space membership 管理要求 operator 同时具备 target tenant + target space membership
+```
+
+## X.3 派生规则（implementation invariant）
+
+```text
+1  membership CRUD 映射到既有 member 权限；read/list = member.read；写 = member.admin
+2  权限词表不因 P17 扩展（permissions 保持 12 行 · P13 不变）
+3  canonical resources 是授权前置条件；缺失 ⇒ DENY（fail closed）
+4  resource provisioning 属 Control Plane / Bootstrap；uap_runtime 永不 self-provision
+5  tenant membership 管理 = tenant-scoped；space membership 管理 = space-scoped
+6  tenant 角色授权不自动延伸到 space 成员管理；space 角色授权不延伸到 tenant membership
+7  初始 space membership（含首位管理员）属 Control Plane / Bootstrap，不作 P17 runtime API
+8  target space member 必须已属 target tenant
+9  platform_admin = 显式平台授权，永不作为 fallback elevation
+10 既有 canonical authorization 保持唯一授权引擎（不新增第二套）
+11 resource lookup 必须带 tenant/space scope
+12 P17 = 无 migration · 无新 runtime privilege · Production Event = EMPTY
+```
+
+## X.4 与既有决策的关系
+
+```text
+P17-D01…D14 保持 FROZEN（本附录不修改任何一条）
+OQ-01 / OQ-02（tenant/space 写 = control-plane）在 X.1 之后获得具体承载：
+    services/control_plane/provisioning.py（capability，非 HTTP surface）
+OQ-05（platform_memberships read-only）/ OQ-06（system immutable）/ OQ-07（ACL read-only）不变
+附录 W「membership write = IN」的解释由 X.2 补齐：写权限来自 member.admin，写事实来自既有 grant
+```
+
+## X.5 后续 Gate
+
+```text
+P17 Implementation = 本轮完成（Wave 3–6 + 测试 + evidence）
+P17 Acceptance     = 需独立执行（未开始）
+P17 Release        = 未授权（需独立 Release Preparation）
+P18                = NOT STARTED
+```
+
+**END OF PLATFORM_DECISION_LOG（P17 AUTHORIZATION GAP RESOLUTION · 附录 X（append-only）· P17-AUTH-01 = OPTION A · Q1 = Control Plane/Bootstrap resource provisioning · Q2 = admin single action · Q3 = platform + tenant + space scoped · Q4 = non-interchangeable · Q5 = tenant + space membership required · F-P17-I-01/02/03 = RESOLVED · 附录 A–W 零改写 · permissions 保持 12 · migration = NONE · runtime privilege delta = 0 · 未 commit / tag / push；2026-10-01）**

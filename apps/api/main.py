@@ -16,6 +16,7 @@ from apps.api.routes.devices import router as devices_router
 from apps.api.routes.agent_runs import router as agent_runs_router
 from apps.api.routes.health import router as health_router
 from apps.api.routes.identity import router as identity_router
+from apps.api.routes.identity_runtime import router as identity_runtime_router
 from apps.api.routes.meta import router as meta_router
 from apps.api.routes.sessions import router as sessions_router
 from config.settings import Settings, get_settings
@@ -100,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(meta_router)
     app.include_router(identity_router)
+    app.include_router(identity_runtime_router)
     app.include_router(devices_router)
     app.include_router(sessions_router)
     app.include_router(agent_runs_router)
