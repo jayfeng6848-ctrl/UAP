@@ -5092,3 +5092,109 @@ F-RP-02 = PARTIALLY RESOLVED（本轮只关闭已授权部分）
 ```
 
 **END OF PLATFORM_DECISION_LOG（P15 FOUNDATION RESOLUTION · 附录 U（append-only）· HD-FRP-FOUNDATION-01 = FROZEN · UUIDv7 = ACCEPT/IMPLEMENT · tenant_id nullable = ACCEPT/FREEZE · platform-scoped event = ACCEPT/FREEZE · Wave 1 baseline = COMMITTED CLEAN-CLONE · Carrier Faces = D-P10-17 恢复（AGENT_RUNTIME 排除）· F-RP-05 = CLOSED · F-RP-02 = PARTIALLY RESOLVED（conftest / infrastructure 保留 OPEN）· 附录 A–T 零改写 · Schema / Migration / Role / Grant / ACL = 0 · Remote Push = 未授权；2026-09-28）**
+
+---
+
+# 附录 V — P16 HUMAN DECISION FREEZE + GOVERNANCE RECONCILIATION（2026-09-28 · canonical registration）
+
+> **append-only**：不改写 `D-*`；不改写附录 A–U；不删除；不重排。
+
+## V.1 登记性质
+
+```text
+性质      = append-only 追加登记（附录 A–U 零改写）
+依据      = P16 PREPARATION（P16 PREP = PASS WITH OPEN DECISIONS）
+            + Human Decision（P16-D01…D14）
+Baseline（登记时实测）= HEAD 1bc60834415cb4f518cd695c93cd79bec986228e
+                        origin/main 同值 · Alembic 0017_p13_seed · 0018+ = 0
+权限声明  = 本附录 ≠ P16 Implementation Acceptance ≠ Release Authorization ≠ Commit/Tag/Push
+```
+
+## V.2 P16 Decisions（FROZEN）
+
+```text
+P16-D01 Runtime Ownership        = ACCEPT（现有 uap_runtime · 不新建 principal）
+P16-D02 Agent Execution Model    = ACCEPT（request-scoped synchronous run + agent_runs ledger；
+                                   不建 agent_run_steps / 不做分布式编排）
+P16-D03 Provider Abstraction     = ACCEPT（AIProvider / ProviderAdapter / ProviderRegistry
+                                   三层；Core=契约 · Services=编排 · Infrastructure=传输）
+P16-D04 Model Routing            = ACCEPT（Task→Capability→Policy→Route→Provider→Model；
+                                   确定性 priority；fallback 需 allow_fallback ∧ 保分类）
+P16-D05 Actor Propagation        = ACCEPT（originating actor immutable；
+                                   Actor Authorization ∧ Agent Authorization 双边约束；
+                                   禁止 platform_admin / uap_bootstrap / uap_migrator fallback）
+P16-D06 Tool Authorization       = ACCEPT（ToolGate 为唯一执行前闸门；handler_ref 只作
+                                   registry key；禁止 dynamic import / eval / 任意 callable；
+                                   scope 无证明即 DENY）
+P16-D07 Credential Boundary      = ACCEPT（secret_ref = opaque reference；
+                                   env-backed resolver；Agent/Tool/Worker NEVER SEE SECRET；
+                                   不得进入 DB/log/audit/event/prompt/response/exception）
+P16-D08 First Production Event   = REJECT PRODUCTION ACTIVATION
+                                   （Production Allowlist 保持 EMPTY · Handlers 保持 0；
+                                    仅保留 integration seam 与 test-only injection）
+P16-D09 Idempotency              = ACCEPT（event_id 主身份；tool 需自然幂等 ∨ idempotency key ∨
+                                   persistence uniqueness；禁止新增 dedup 表；
+                                   禁止 automatic provider retry）
+P16-D10 Tenant Semantics         = ACCEPT（agents.tenant_id 保持 NOT NULL；
+                                   NO platform Agent；tenant NULL 仍严格 = platform-scoped；
+                                   agent_runs.tenant_id NOT NULL · space_id 可空）
+P16-D11 Runtime Principal        = ACCEPT（只扩展 uap_runtime）
+P16-D12 Schema Mutation          = ACCEPT LIMITED（新增 agent_runs；不新增 run_steps /
+                                   execution_logs / attempts / tool_history / runtime_events）
+P16-D13 API Surface              = ACCEPT（POST /agents/{agent_id}/runs · GET /agent-runs/{run_id}；
+                                   禁止 tool 直调 API）
+P16-D14 Test Acceptance          = ACCEPT（显式 allowlist；unit/architecture/security/integration
+                                   + P14/P15 regression 不变）
+P16 Governance Reconciliation    = ACCEPT（见 V.3）
+```
+
+## V.3 Governance Reconciliation（F-P16-03 处置）
+
+```text
+决定：不恢复旧 AGENT_RUNTIME_* 文档作为 P16 authority；
+      改以新建 docs/architecture/P16_AI_AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md 作为
+      P16 Implementation Rules Authority。
+要求：1) 只引用已冻结的 D-AGENT-01…16 与本附录 P16 Decisions；
+      2) 以当前 repository / DB 实测为基准（不复活 034ee97 / 0012 过期基线）；
+      3) 不修改历史 Decision；
+      4) 明确 supersede / obsolete 关系；
+      5) 明确 IN / OUT；
+      6) 明确 Security / Actor / Credential / Tool / Provider / Run / Audit 边界。
+禁止：创建第二套 Decision Log（沿用本 PDL · append-only）。
+```
+
+## V.4 Scope 边界（本附录冻结的 IN / OUT）
+
+```text
+IN        = AI Provider Runtime · Model Routing Runtime · Agent Runtime · Run lifecycle ·
+            Actor propagation · Tool authorization · Tool execution ·
+            Credential resolution boundary · AI request recording · Agent run recording ·
+            Audit linkage · 最小 Agent API · 最小真实 runtime integration
+CONDITIONAL = Event contract integration · P15 consumer compatibility
+            （Production Allowlist = EMPTY · Production Handlers = 0 · 仅 test-only seam）
+OUT       = Frontend/C-7 · Management/C-2 · Bootstrap CLI/C-4 · Audit Deepening/C-8 ·
+            D-01 persistence repair · Agent Marketplace · Multi-Agent Orchestration ·
+            Memory System · Prompt Management Platform · RAG · Vector DB · Workflow Engine ·
+            Billing · Admin UI · Streaming · Celery/Kafka/RabbitMQ 等具体框架 · 多区域部署 ·
+            自动成本优化系统
+```
+
+## V.5 继承不变式（不得改动）
+
+```text
+Core → Domain = 0 · Actor ≠ Agent ≠ Worker ≠ DB principal · USER/ROLE/AGENT subject vocabulary ·
+12 canonical actions · DENY>ALLOW · fail-closed · 无授权缓存 · approval ≠ ALLOW ·
+UUIDv7 canonical event identity · tenant_id = str | None（NULL = platform-scoped）·
+P15 consumer 语义（claim/lease/retry/recovery/幂等）· D-01 DEFERRED · OI-G-4 BATCH-D ·
+F-RP-06 hash basis = committed Git blob bytes
+```
+
+## V.6 后续 Gate（本附录不授权其中任何一项）
+
+```text
+P16 IMPLEMENTATION → P16 IMPLEMENTATION GATE → P16 ACCEPTANCE GATE →
+P16 RELEASE PREPARATION → P16 COMMIT + TAG GATE → P16 REMOTE PUSH GATE
+（Release version 由 Release Preparation 阶段确定；本附录不预宣布 release number）
+```
+
+**END OF PLATFORM_DECISION_LOG（P16 HUMAN DECISION FREEZE · 附录 V（append-only）· P16-D01…D14 = FROZEN（D08 = REJECT production event activation）· Governance Reconciliation = ACCEPT（旧 AGENT_RUNTIME_* 不复活）· 附录 A–U 零改写 · Production Allowlist = EMPTY · Schema 扩展仅限 agent_runs（D12 LIMITED）· 未执行任何 code / migration / DB mutation / commit / tag / push；2026-09-28）**

@@ -48,8 +48,15 @@ class ToolGate:
         space_id: str | None = None,
         scope: str | None = None,
         request_id: str | None = None,
+        agent_id: str | None = None,
     ) -> Decision:
-        """Deny unless the tool, its grants and the service all agree."""
+        """Deny unless the tool, its grants and the service all agree.
+
+        ``agent_id`` is an additive P16 parameter: when the caller names the
+        agent proposing the call, the agent's own grant must also allow it
+        (P16-D05: actor authorization AND agent authorization). Omitting it
+        preserves the previous behaviour for every existing caller.
+        """
         try:
             tool = self._repository.get_tool(tool_id)
         except AuthorizationUnavailable as exc:
@@ -64,6 +71,11 @@ class ToolGate:
         if tenant_id is not None and tool_tenant is not None:
             if str(tool_tenant) != tenant_id:
                 return Decision(effect="DENY", reason="cross-tenant-tool")
+
+        if agent_id is not None:
+            agent_decision = self._agent_permission(tool_id, agent_id)
+            if agent_decision is not None:
+                return agent_decision
 
         try:
             grant_rows = self._repository.tool_grants(tool_id)
@@ -113,6 +125,24 @@ class ToolGate:
             )
 
         return decision
+
+    # ------------------------------------------------------------------ agents
+    def _agent_permission(self, tool_id: str, agent_id: str) -> Decision | None:
+        """Agent-side grant for this tool: deny wins, no grant is a denial."""
+        try:
+            rows = self._repository.agent_grants(agent_id)
+        except AuthorizationUnavailable as exc:
+            return Decision(effect="DENY", reason=f"authorization-unavailable:{exc}")
+        effects = [
+            str(row._mapping["effect"])
+            for row in rows
+            if row._mapping["tool_id"] is not None and str(row._mapping["tool_id"]) == tool_id
+        ]
+        if any(effect == "deny" for effect in effects):
+            return Decision(effect="DENY", reason="agent-deny")
+        if any(effect == "allow" for effect in effects):
+            return None
+        return Decision(effect="DENY", reason="agent-no-grant")
 
 
 __all__ = ["ToolGate"]
