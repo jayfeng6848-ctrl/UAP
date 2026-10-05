@@ -1,7 +1,7 @@
 {
   "name": "uap-frontend",
   "private": true,
-  "version": "0.1.18",
+  "version": "0.1.19",
   "type": "module",
   "description": "UAP web client — Platform UI foundation (Company UI not implemented)",
   "scripts": {

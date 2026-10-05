@@ -20,6 +20,16 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Override the generated correlation id (e.g. to continue an existing trace). */
   correlationId?: string;
+  /**
+   * Set to ``false`` to run this request **without** the one-shot 401 recovery.
+   *
+   * This exists for the session-refresh path itself (P21-RUT-04): a refresh that
+   * answers 401 is terminal and must not re-enter ``onUnauthorized``. Without the
+   * opt-out the in-flight refresh would await its own promise — a self-await that
+   * never settles. The default is ``true``, so every existing caller keeps the
+   * frozen "one recovery attempt, then retry once" behaviour unchanged.
+   */
+  recovery?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -96,7 +106,12 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       requestOptions.signal?.removeEventListener('abort', abortFromCaller);
     }
 
-    if (response.status === 401 && allowRecovery && options.onUnauthorized) {
+    if (
+      response.status === 401 &&
+      allowRecovery &&
+      requestOptions.recovery !== false &&
+      options.onUnauthorized
+    ) {
       const recovered = await options.onUnauthorized().catch(() => false);
       if (recovered) {
         return execute<T>(method, path, { ...requestOptions, correlationId }, false);

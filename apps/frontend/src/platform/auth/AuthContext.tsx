@@ -24,7 +24,13 @@ import {
 import type { ReactNode } from 'react';
 
 import { ApiError, createApiClient } from '../api';
-import type { ApiClient, LoginResponse, LogoutResponse, MeResponse } from '../api';
+import type {
+  ApiClient,
+  LoginResponse,
+  LogoutResponse,
+  MeResponse,
+  RequestOptions,
+} from '../api';
 
 export type AuthStatus = 'bootstrapping' | 'unauthenticated' | 'refreshing' | 'authenticated';
 
@@ -65,9 +71,17 @@ export function AuthProvider({
   const [error, setError] = useState<ApiError | null>(null);
   const refreshInFlight = useRef<Promise<boolean> | null>(null);
 
-  const fetchMe = useCallback(async (api: ApiClient): Promise<MeResponse | null> => {
+  const fetchMe = useCallback(async (
+    api: ApiClient,
+    options?: RequestOptions,
+  ): Promise<MeResponse | null> => {
     try {
-      const me = await api.get<MeResponse>('/me');
+      // Keep the frozen call shape (`get('/me')`) when no options are supplied so
+      // existing callers/tests observe exactly the same interaction.
+      const me =
+        options === undefined
+          ? await api.get<MeResponse>('/me')
+          : await api.get<MeResponse>('/me', options);
       setUser(me);
       setError(null);
       setStatus('authenticated');
@@ -93,8 +107,13 @@ export function AuthProvider({
       }
       setStatus((current) => (current === 'authenticated' ? 'refreshing' : current));
       try {
-        await api.post('/sessions/refresh', undefined);
-        const me = await fetchMe(api);
+        // P21-RUT-04: the recovery path must never re-enter itself.
+        // `/sessions/refresh` and the `/me` read that follows it run with recovery
+        // disabled, so a 401 here terminates deterministically instead of letting
+        // this attempt await its own promise. Every other request keeps the frozen
+        // one-shot recovery.
+        await api.post('/sessions/refresh', undefined, { recovery: false });
+        const me = await fetchMe(api, { recovery: false });
         return me !== null;
       } catch {
         tokenRef.current = null;
