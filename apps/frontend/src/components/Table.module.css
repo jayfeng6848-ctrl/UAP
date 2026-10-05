@@ -1,0 +1,12 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--uap-color-surface);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--uap-space-2) var(--uap-space-3);
+  border-bottom: 1px solid var(--uap-color-border);
+}

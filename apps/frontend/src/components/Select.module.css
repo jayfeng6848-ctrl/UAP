@@ -1,0 +1,9 @@
+.select {
+  width: 100%;
+  padding: var(--uap-space-2) var(--uap-space-3);
+  border: 1px solid var(--uap-color-border);
+  border-radius: var(--uap-radius-md);
+  background: var(--uap-color-surface);
+  font: inherit;
+  color: inherit;
+}

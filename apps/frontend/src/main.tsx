@@ -1,25 +1,24 @@
-import React from 'react';
+/**
+ * Application entry (Appendix AL H11).
+ *
+ * The STEP-0 skeleton page (a bare `/api/v1/meta` fetch) is replaced by the real
+ * foundation: design tokens → global reset → App (providers → router → shell).
+ */
+
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-function App() {
-  const [meta, setMeta] = React.useState<Record<string, unknown> | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+import { App } from './app/App';
+import './platform/design/tokens.css';
+import './platform/design/global.css';
 
-  React.useEffect(() => {
-    fetch('/api/v1/meta')
-      .then((res) => res.json())
-      .then(setMeta)
-      .catch((err) => setError(String(err)));
-  }, []);
-
-  return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: 32 }}>
-      <h1>UAP Console</h1>
-      <p>Universal AI Platform — STEP 0 foundation.</p>
-      {error && <p style={{ color: 'crimson' }}>Backend unreachable: {error}</p>}
-      {meta && <pre>{JSON.stringify(meta, null, 2)}</pre>}
-    </main>
-  );
+const container = document.getElementById('root');
+if (container === null) {
+  throw new Error('UAP Console root element is missing');
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(container).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

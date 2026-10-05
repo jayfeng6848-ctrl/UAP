@@ -1,0 +1,23 @@
+.badge {
+  display: inline-block;
+  padding: 0 var(--uap-space-2);
+  border-radius: var(--uap-radius-sm);
+  font-size: var(--uap-font-size-sm);
+  border: 1px solid var(--uap-color-border);
+  background: var(--uap-color-surface-muted);
+}
+
+.success {
+  color: var(--uap-color-success);
+  border-color: var(--uap-color-success);
+}
+
+.danger {
+  color: var(--uap-color-danger);
+  border-color: var(--uap-color-danger);
+}
+
+.warning {
+  color: var(--uap-color-warning);
+  border-color: var(--uap-color-warning);
+}

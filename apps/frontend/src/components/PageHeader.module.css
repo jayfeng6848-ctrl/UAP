@@ -1,0 +1,12 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--uap-space-3);
+  margin-bottom: var(--uap-space-4);
+}
+
+.title {
+  font-size: var(--uap-font-size-xl);
+}

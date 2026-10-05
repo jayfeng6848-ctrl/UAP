@@ -1,0 +1,57 @@
+/**
+ * UAP Platform Design Tokens (Appendix AL H07).
+ *
+ * The only source of visual truth for the platform UI foundation: colours,
+ * spacing, radius, typography, elevation, motion and breakpoints. Company (or any
+ * future domain) pages consume these tokens — they never invent their own scale.
+ */
+
+:root {
+  /* colour */
+  --uap-color-surface: #ffffff;
+  --uap-color-surface-muted: #f6f7f9;
+  --uap-color-text: #14181f;
+  --uap-color-muted: #5b6472;
+  --uap-color-border: #d8dde5;
+  --uap-color-accent: #2f6fed;
+  --uap-color-accent-contrast: #ffffff;
+  --uap-color-success: #1d7a4b;
+  --uap-color-warning: #a86400;
+  --uap-color-danger: #b3261e;
+  --uap-color-focus: #2f6fed;
+
+  /* spacing */
+  --uap-space-1: 4px;
+  --uap-space-2: 8px;
+  --uap-space-3: 12px;
+  --uap-space-4: 16px;
+  --uap-space-5: 24px;
+  --uap-space-6: 32px;
+
+  /* radius */
+  --uap-radius-sm: 4px;
+  --uap-radius-md: 8px;
+  --uap-radius-lg: 12px;
+
+  /* typography */
+  --uap-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --uap-font-size-sm: 0.8125rem;
+  --uap-font-size-md: 0.9375rem;
+  --uap-font-size-lg: 1.125rem;
+  --uap-font-size-xl: 1.5rem;
+  --uap-font-weight-regular: 400;
+  --uap-font-weight-medium: 500;
+  --uap-line-height: 1.5;
+
+  /* elevation */
+  --uap-elevation-1: 0 1px 2px rgba(20, 24, 31, 0.08);
+  --uap-elevation-2: 0 6px 20px rgba(20, 24, 31, 0.14);
+
+  /* motion */
+  --uap-motion-fast: 120ms;
+  --uap-motion-base: 200ms;
+  --uap-motion-easing: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* breakpoints (documented for the responsive foundation; consumed in CSS Modules) */
+/* mobile: < 768px · tablet: 768px - 1023px · desktop: >= 1024px */

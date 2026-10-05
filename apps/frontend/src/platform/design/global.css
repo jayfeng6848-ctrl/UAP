@@ -1,0 +1,41 @@
+/** Global reset + body defaults. Nothing else belongs in the global sheet. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--uap-font-family);
+  font-size: var(--uap-font-size-md);
+  line-height: var(--uap-line-height);
+  color: var(--uap-color-text);
+  background: var(--uap-color-surface-muted);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--uap-color-focus);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
