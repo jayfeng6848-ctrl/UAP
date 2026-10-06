@@ -21,26 +21,26 @@ export function AppShell() {
   return (
     <div className={styles.shell} data-testid="uap-app-shell">
       <header className={styles.header}>
-        <span className={styles.brand}>UAP Console</span>
+        <span className={styles.brand}>UAP</span>
         <div className={styles.meta}>
           <span data-testid="uap-shell-tenant">
-            Tenant: {tenantId ?? 'not selected'}
+            工作空间：{tenantId ?? '未选择'}
           </span>
           <span data-testid="uap-shell-user">
-            User: {user?.user_id ?? 'not signed in'}
+            用户：{user?.user_id ?? '未登录'}
           </span>
           {status === 'authenticated' ? (
             <Button variant="secondary" size="small" onClick={() => void logout()}>
-              Sign out
+              退出登录
             </Button>
           ) : null}
         </div>
       </header>
       <div className={styles.body}>
-        <nav aria-label="Primary">
+        <nav aria-label="主导航">
           <ul>
             <li>
-              <NavLink to="/">Overview</NavLink>
+              <NavLink to="/">总览</NavLink>
             </li>
           </ul>
         </nav>

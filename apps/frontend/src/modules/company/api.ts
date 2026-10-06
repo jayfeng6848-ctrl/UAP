@@ -24,6 +24,104 @@ import type { ApiClient } from '../../platform/api';
 /** Default page size used by Company list views (the API accepts 1…200). */
 export const COMPANY_LIST_LIMIT = 25;
 
+// ------------------------------------------------- P21 Company UI surfaces (AP)
+/** Capability projection (OQ-CUI-01). The frontend consumes it; it never computes it. */
+export interface CompanyCapability {
+  tenant_id: string;
+  actions: Record<string, boolean>;
+  operational: string[];
+  reserved: string[];
+  reserved_exposed: boolean;
+  team: string;
+  self: string;
+}
+
+/** Operational read-only report (OQ-CUI-02). Six frozen sections, no report table. */
+export interface OperationalReport {
+  headcount: number;
+  employee_lifecycle: Record<string, number>;
+  assignment_summary: Record<string, number>;
+  unassigned_employees: number;
+  space_employee_counts: Record<string, number>;
+  space_assignment_counts: Record<string, number>;
+}
+
+export interface CopilotCitation {
+  type: string;
+  id: string;
+  label: string;
+}
+
+export interface CopilotProposal {
+  proposal_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  expected_state: string;
+  summary: string;
+  expires_at: number;
+}
+
+export interface CopilotReply {
+  status: string;
+  failure_code: string | null;
+  mode: string;
+  answer: Record<string, unknown>;
+  citations: CopilotCitation[];
+  current_state: string;
+  proposal: CopilotProposal | null;
+}
+
+export function getCompanyCapabilities(
+  client: ApiClient,
+  tenantId: string,
+): Promise<CompanyCapability> {
+  return client.get<CompanyCapability>(
+    `/company/tenants/${encodeURIComponent(tenantId)}/capabilities`,
+  );
+}
+
+export function getOperationalReport(
+  client: ApiClient,
+  tenantId: string,
+): Promise<OperationalReport> {
+  return client.get<OperationalReport>(
+    `/company/tenants/${encodeURIComponent(tenantId)}/reports/operational`,
+  );
+}
+
+/** Company Copilot (OQ-CUI-03/-09): the Intelligence Facade, not a second AI entry. */
+export function runCopilot(
+  client: ApiClient,
+  tenantId: string,
+  message: string,
+  options: { mode?: 'answer' | 'propose'; action?: string; resourceId?: string } = {},
+): Promise<CopilotReply> {
+  const context: Record<string, unknown> = { surface: 'company.employees' };
+  if (options.resourceId) {
+    context.resource_id = options.resourceId;
+  }
+  if (options.action) {
+    context.filters = { action: options.action };
+  }
+  return client.post<CopilotReply>(
+    `/intelligence/tenants/${encodeURIComponent(tenantId)}/assistant/runs`,
+    { message, mode: options.mode ?? 'answer', context },
+  );
+}
+
+/** Human confirmation of an ephemeral proposal (single-use; re-authorized server-side). */
+export function confirmProposal(
+  client: ApiClient,
+  tenantId: string,
+  proposalId: string,
+): Promise<Record<string, unknown>> {
+  return client.post<Record<string, unknown>>(
+    `/intelligence/tenants/${encodeURIComponent(tenantId)}/assistant/proposals/confirm`,
+    { proposal_id: proposalId },
+  );
+}
+
 // ------------------------------------------------------------------ contracts
 export interface Employee {
   employee_id: string;

@@ -32,6 +32,15 @@ export default defineConfig({
       // Development-only routing; production is same-origin behind a reverse proxy.
       '/company': { target: API_TARGET, changeOrigin: true },
       '^/tenants/[^/]+/spaces': { target: API_TARGET, changeOrigin: true },
+      // Customer AI onboarding (HD-P21-17). The trailing slash matters: the SPA's own
+      // customer entry is exactly `/ai`, so only the API namespace `/ai/...`
+      // (connection / messages) is proxied and the entry route keeps serving the SPA.
+      '/ai/': { target: API_TARGET, changeOrigin: true },
+      // Company Intelligence Facade (P21 Company UI · OQ-CUI-03/-09). Same rule as
+      // `/ai/`: the SPA has no `/intelligence` route of its own, so the whole
+      // namespace is proxied to the backend — never a second API target, and the
+      // provider secret never passes through here (the proxy only forwards bytes).
+      '/intelligence': { target: API_TARGET, changeOrigin: true },
     },
   },
 });

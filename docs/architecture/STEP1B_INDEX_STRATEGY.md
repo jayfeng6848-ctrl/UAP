@@ -218,3 +218,55 @@ Status: **DESIGN PREPARATION — 不创建任何表**
 - **P3 候选（确认后建）**：`ix_users_status`、`ix_tenants_status`、`ix_rp_permission`、roles FK 反查、agents.owner_id、`ix_aimodels_capability`
 - **不建**：低基数列单列、jsonb GIN、无查询支撑的组合
 - 季度用 `pg_stat_user_indexes` 清理零扫描索引（列入运维手册）
+
+---
+
+## 6. append-only clarification（2026-09-25 · P12 Decision Freeze 追加）
+
+> **本节为追加澄清**：**不改写**上文任何冻结设计与数字。目的：使本 B0 文档与 P12 冻结结论
+> **跨文档可见**（Charter §7）。权威载体 = `PLATFORM_DECISION_LOG.md` 的 `D-P12-01`…`D-P12-15` 与附录 I。
+
+### 6.1 §1 `ai_models` 行的 `ix_aimodels_capability`（对应 `T-1` / `CF-2` ⇒ **RESOLVED**）
+
+上文 §1 记 `ix_aimodels_capability ON (capability) WHERE enabled`。**实测** `ai_models` 只有
+**`capabilities` JSONB**（复数），**`capability` 列不存在**；`enabled` 列存在。
+`D-P12-14` 裁定：
+
+```text
+DO NOT IMPLEMENT ix_aimodels_capability
+T-1 = stale / mismatched design claim（CLOSED）
+```
+
+**不得**偷换为 `GIN(capabilities)`；**不得**发明其他 JSONB index（与本文 §2「jsonb GIN 不建」一致）。
+
+```text
+the historical `ix_aimodels_capability` proposal is not a P12 implementation target
+until a separate schema/query contract explicitly defines a valid queryable key/path.
+```
+
+### 6.2 §3 FK 反查「已覆盖」判定的两处深化（`CF-1` ⇒ CLARIFIED · `CF-5` ⇒ RESOLVED）
+
+- **`CF-1`**：§3 `resources` 行称「复合索引打头 tenant/space/**owner** 均覆盖 → **通过**」。
+  **实测不成立**：`ix_res_tenant_space_type_status` 与 `ix_res_tenant_owner` **均以 `tenant_id` 打头**，
+  **无一索引以 `space_id` 或 `owner_id` 打头**。⇒ 该「通过」判断**不得**被解读为
+  「已具备 `space_id`/`owner_id`-leading 覆盖」；**也不得据此自动创建**这两个索引（`D-P12-01`/`CF-1`）。
+  **与「implemented coverage」必须区分**。
+- **`CF-5`**：§3 中对部分唯一索引的引用**不构成** FK 完整性覆盖。PG 仅在谓词蕴含时可用部分索引，
+  而 FK 检查使用**无谓词**查询 ⇒ **partial index 不服务 FK 检查**（`D-P12-05`）。
+  受影响的 `partial-only`（PREP 实测 **5**）：`uq_credentials_active_password` · `uq_roles_space` ·
+  `uq_roles_tenant` · `uq_tool_exec_idem` · `uq_tools_tenant`。
+
+### 6.3 §3 清单的**完整性边界**（`GAP-INV-P12` · `CF-4`）
+
+§3 成文早于 `0008`（B1-5）· `0010`（B1-6）· `0011`（P09）的建表 ⇒ **24 个 FK GAP 中的 19 个
+（post-strategy 表）从未被 §3 adjudicate**；本文档 §1 亦**无 `platform_memberships` 小节**。
+**这两处文档缺失不得被解读为历史 schema defect，也不自动转成 index implementation requirement**
+（`D-P12-13` · `CF-4`）。后续按 `D-P12-13` 的 **per-gap adjudication** 逐项裁定。
+
+### 6.4 索引对象计数口径（`D-P12-01`）
+
+PREP 实测（以各 migration 为准）：**索引对象总数 = 57** = 独立创建 **52**
+（`op.create_index` 25 + 原生 SQL 27）+ **内联 `sa.UniqueConstraint` 隐式 5**。
+既有索引在 P12 内 **NOT recreated / NOT renamed / NOT merged / NOT deleted**。
+
+**END OF STEP1B_INDEX_STRATEGY（2026-09-25 · append-only clarification）**

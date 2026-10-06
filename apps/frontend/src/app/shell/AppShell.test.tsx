@@ -67,7 +67,7 @@ describe('AppShell', () => {
     renderShell(client);
 
     expect(screen.getByTestId('uap-app-shell')).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument();
     expect(screen.getByTestId('uap-shell-main')).toHaveTextContent('shell content');
   });
 
@@ -76,8 +76,8 @@ describe('AppShell', () => {
     renderShell(client);
 
     expect(screen.getByTestId('uap-shell-tenant')).toHaveTextContent(TENANT);
-    expect(screen.getByTestId('uap-shell-user')).toHaveTextContent('not signed in');
-    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('uap-shell-user')).toHaveTextContent('未登录');
+    expect(screen.queryByRole('button', { name: '退出登录' })).not.toBeInTheDocument();
   });
 
   it('shows the signed-in user and signs out through the session endpoint', async () => {
@@ -86,7 +86,7 @@ describe('AppShell', () => {
     renderShell(client, { autoLogin: true });
 
     expect(await screen.findByTestId('uap-shell-user')).toHaveTextContent('user-1');
-    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+    await user.click(screen.getByRole('button', { name: '退出登录' }));
 
     expect(post).toHaveBeenCalledWith('/sessions/logout', undefined);
   });
@@ -95,7 +95,7 @@ describe('AppShell', () => {
     const { client } = makeClient();
     renderShell(client);
 
-    expect(screen.getByRole('navigation', { name: 'Primary' }).textContent).not.toMatch(
+    expect(screen.getByRole('navigation', { name: '主导航' }).textContent).not.toMatch(
       /employee|assignment|company/i,
     );
   });

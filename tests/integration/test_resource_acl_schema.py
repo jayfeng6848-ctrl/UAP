@@ -91,8 +91,8 @@ P09_ACL_TRIGGERS = {
 }
 FORBIDDEN_TABLES = {
     "resource_relations",
-    # P09 tables were delivered by 0011 (no longer forbidden)
-    "events", "audit_logs", "groups",
+    # P09 tables were delivered by 0011; P10 delivered events/audit_logs
+    "groups",
 }
 
 
@@ -103,7 +103,7 @@ FORBIDDEN_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     yield
     reset_test_database()
 
@@ -186,6 +186,7 @@ def _registry_fixture(conn, key: str = "user"):
 
 # =========================================================== S1/S2 / M1-M4
 AI_PARTITION_PREFIX = "ai_request_logs_"
+PARTITION_PREFIXES = ("ai_request_logs_", "events_", "audit_logs_")
 
 
 def test_exact_table_set_and_no_forbidden_tables(db) -> None:
@@ -205,13 +206,15 @@ def test_exact_table_set_and_no_forbidden_tables(db) -> None:
         "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
         # P09 (0011) delivered the agent / tool-permission tables
         "agents", "agent_versions", "agent_permissions", "tool_executions",
+        # P10 (0013) delivered the event / audit carriers (both partition parents)
+        "events", "audit_logs",
     } | B14_TABLES
-    partitions = {t for t in tables if t.startswith(AI_PARTITION_PREFIX)}
+    partitions = {t for t in tables if t.startswith(PARTITION_PREFIXES)}
     expected |= partitions
     assert tables == expected, (
         f"unexpected: {tables - expected} / missing: {expected - tables}"
     )
-    assert len(partitions) == 1, sorted(partitions)
+    assert len(partitions) == 3, sorted(partitions)
     assert tables.isdisjoint(FORBIDDEN_TABLES)
 
 
@@ -232,7 +235,7 @@ def test_migration_roundtrip_0006_to_0007(db) -> None:
     assert _scalar("SELECT count(*) FROM pg_proc WHERE proname='uap_uuid_v7'") == 1
     # re-upgrade restores the exact same object set
     upgrade(cfg, "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     tables = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )}
@@ -399,13 +402,14 @@ def test_resource_permissions_schema_and_action_is_opaque(db) -> None:
 
 
 # ==================================================== S11 / functions (D)
-def test_trigger_set_is_exactly_three(db) -> None:
+def test_trigger_set_is_exactly_four(db) -> None:
     names = {r[0] for r in _rows(
         "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal "
         "AND tgrelid::regclass::text = ANY(:t)", t=list(B14_TABLES)
     )}
-    assert names == B14_TRIGGERS, names
-    assert not (names & P09_ACL_TRIGGERS)
+    # B1-4 三触发器 + P11 (0014) 交付的 G（resource_permissions 首个触发器）
+    assert names == B14_TRIGGERS | {"tg_acl_subject_exists"}, names
+    assert not (names & (P09_ACL_TRIGGERS - {"tg_acl_subject_exists"}))
 
 
 def test_trigger_timings_match_frozen_decisions(db) -> None:
@@ -444,7 +448,10 @@ def test_zero_seed_and_unwritable_acl(db) -> None:
                 "VALUES (:i, :t, 'doc') RETURNING id"
             ), {"i": str(_uuid.uuid4()), "t": tid}).scalar()
             conn.commit()
-            with pytest.raises(sa.exc.IntegrityError):
+            # P11 (0014)：G = tg_acl_subject_exists 在 FK 之前先 RAISE（空注册表 ⇒
+            # type 未注册），异常类型由 IntegrityError 变为 trigger 的 ProgrammingError；
+            # 断言语义不变：ACL 行不可写。
+            with pytest.raises(sa.exc.DBAPIError):
                 conn.execute(sa.text(
                     "INSERT INTO resource_permissions "
                     "(resource_id, subject_type_id, subject_id, action, effect) "
@@ -598,6 +605,10 @@ def test_d_b14_09_granted_by_set_null_and_owner_independence(db) -> None:
             tid = _fresh_tenant(conn, "gb14")
             actor = _fresh_user(conn, "actor@example.com")
             owner = _fresh_user(conn, "owner@example.com")
+            # P11 (0014)：H = tg_acl_user_hard_delete 会在 user 硬删时清理其
+            # （subject = 该 user 的）ACL 行 ⇒ 被删的 actor / owner 都不能充当
+            # subject，引入第三个 user 专职 subject。
+            subject = _fresh_user(conn, "subject@example.com")
             stype = _registry_fixture(conn, "user")
             rid = conn.execute(sa.text(
                 "INSERT INTO resources (tenant_id, owner_id, resource_type) "
@@ -607,7 +618,7 @@ def test_d_b14_09_granted_by_set_null_and_owner_independence(db) -> None:
                 "INSERT INTO resource_permissions "
                 "(resource_id, subject_type_id, subject_id, action, effect, granted_by) "
                 "VALUES (:r, :st, :su, 'read', 'allow', :g)"
-            ), {"r": rid, "st": stype, "su": actor, "g": actor})
+            ), {"r": rid, "st": stype, "su": subject, "g": actor})
             conn.commit()
 
             # GB-01: delete the actor -> ACL row survives, granted_by becomes NULL
@@ -646,7 +657,14 @@ def test_d_b14_08_action_not_null_and_duplicate_rejected(db) -> None:
                 "VALUES (:t, 'doc') RETURNING id"
             ), {"t": tid}).scalar()
             conn.commit()
-            sid = str(_uuid.uuid4())
+            # P11 (0014)：G 要求 subject 真实存在 ⇒ 用真实 TENANT role 代替伪造 id
+            conn.execute(sa.text(
+                "INSERT INTO roles (key, name, scope, tenant_id, status) "
+                "VALUES ('act_role', 'ACT', 'TENANT', :t, 'active')"
+            ), {"t": tid})
+            sid = conn.execute(sa.text(
+                "SELECT id FROM roles WHERE key = 'act_role'")).scalar()
+            conn.commit()
             # ACT-01: action IS NULL -> rejected by NOT NULL
             with pytest.raises(sa.exc.IntegrityError):
                 conn.execute(sa.text(
@@ -703,7 +721,9 @@ def test_acl_row_cascades_with_resource_delete(db) -> None:
     try:
         with engine.connect() as conn:
             tid = _fresh_tenant(conn, "f4")
-            stype = _registry_fixture(conn, "agent")
+            # P11 (0014)：G 要求 subject 真实存在 ⇒ 伪造 id 将被拒绝；改用真实 user
+            stype = _registry_fixture(conn, "user")
+            su = _fresh_user(conn, "f4subj@example.com")
             rid = conn.execute(sa.text(
                 "INSERT INTO resources (tenant_id, resource_type) "
                 "VALUES (:t, 'doc') RETURNING id"
@@ -712,7 +732,7 @@ def test_acl_row_cascades_with_resource_delete(db) -> None:
                 "INSERT INTO resource_permissions "
                 "(resource_id, subject_type_id, subject_id, action, effect) "
                 "VALUES (:r, :st, :su, 'read', 'allow')"
-            ), {"r": rid, "st": stype, "su": str(_uuid.uuid4())})
+            ), {"r": rid, "st": stype, "su": su})
             conn.commit()
             conn.execute(sa.text("DELETE FROM resources WHERE id=:r"), {"r": rid})
             conn.commit()
@@ -879,11 +899,18 @@ def test_registry_whitelist_rejects_group_and_bad_format(db) -> None:
 
 
 # =================================================== scope / boundary audit
-def test_g_h_i_j_absent_and_rls_disabled(db) -> None:
-    present = {r[0] for r in _rows(
-        "SELECT tgname FROM pg_trigger WHERE tgname = ANY(:n)", n=list(P09_ACL_TRIGGERS)
-    )}
-    assert present == set()
+def test_g_h_i_j_present_on_canonical_tables_and_rls_disabled(db) -> None:
+    # 历史（B1-4 轮）：G/H/I/J 不存在；`D-P11-01` 实施后翻转为规范表挂载检查
+    placement = dict(_rows(
+        "SELECT tgname, tgrelid::regclass::text FROM pg_trigger "
+        "WHERE NOT tgisinternal AND tgparentid = 0 AND tgname = ANY(:n)",
+        n=list(P09_ACL_TRIGGERS)))
+    assert placement == {
+        "tg_acl_subject_exists": "resource_permissions",
+        "tg_acl_user_hard_delete": "users",
+        "tg_acl_role_delete_block": "roles",
+        "tg_agent_acl_expire": "agents",
+    }
     assert _scalar("SELECT count(*) FROM pg_policies") == 0
     assert _scalar(
         "SELECT count(*) FROM pg_class WHERE relname = ANY(:t) "

@@ -36,7 +36,10 @@ Security properties of the gate:
 
 ## Authorization model (design frozen)
 
-Frozen by `D-AUTH-01`…`D-AUTH-25` in `PLATFORM_DECISION_LOG.md`. Implementation exists in the working tree (uncommitted); acceptance pending.
+Frozen by `D-AUTH-01`…`D-AUTH-25` in `PLATFORM_DECISION_LOG.md`. Implemented and
+accepted — commit `034ee97`, tag `UAP-V0.1.8-AUTHORIZATION`
+(`core/permission` + `core/policy` contracts, `services/authorization/` service,
+migration `0012_authz_enforcement`; full regression `542 passed`).
 
 > Registry: `D-AUTH` total **25** = `FROZEN` **22** + `DEFERRED` **3** + `SUPERSEDED` **0**
 > (`OQ` 22 = 19 + 3; plus the non-OQ `D-AUTH-23` (GAP-11) and `D-AUTH-24` / `D-AUTH-25` (D-B14-08 conflict resolution, 2026-09-24); platform-level supersession = 1: `D-B14-08` → SUPERSEDED by `D-AUTH-05`).
@@ -70,6 +73,34 @@ Inherited and unchanged: `R2-D-14` (`DENY > ALLOW`), `R2-D-15` (permission
 scope-neutral), `R4` (`effective_platform_admin`), ACL subject types
 `user | role | agent`, P09 schema.
 
-> Status: **design frozen — not implemented**. No authorization code, service or
-> schema exists. See
-> [`docs/architecture/AUTHORIZATION_PREP_REPORT.md`](../architecture/AUTHORIZATION_PREP_REPORT.md).
+> Status: **implemented and accepted**. Contracts in `core/permission` /
+> `core/policy`; deciding service in `services/authorization/`. See
+> [`docs/architecture/AUTHORIZATION_IMPLEMENTATION_CONTRACT.md`](../architecture/AUTHORIZATION_IMPLEMENTATION_CONTRACT.md).
+
+## Agent runtime security (design frozen)
+
+Frozen by `D-AGENT-01`…`D-AGENT-16`; contract in
+[`docs/architecture/AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md`](../architecture/AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md).
+
+- **Untrusted context**: user input, external documents, tool results, memory and
+  retrieved content are all *potentially untrusted*. Retrieved content must
+  **never** be promoted into the instruction layer; a database dump must never be
+  pasted into a prompt (`D-AGENT-04`).
+- **`LLM output ≠ trusted execution command`**: text, JSON, tool proposals and
+  plans are *proposals* only, and each must pass
+  `Parse → Schema → Authorization → Policy → Approval → Tool` (`D-AGENT-03`).
+- **Model confidence is never a security decision** — only the authorization
+  service and policy decide.
+- **Cancellation ≠ rollback**: an already-started, non-revocable side effect must
+  be recorded as an orphaned execution, never hidden behind "cancelled"
+  (`D-AGENT-07`).
+- **No duplicate real-world operation**: run-level + tool-level idempotency, plus
+  resource-version / conditional-update control where concurrent mutation of the
+  same resource is possible (`D-AGENT-06`, `D-AGENT-08`).
+- **Log hygiene**: no raw sensitive prompt, no secret, no unrestricted tool
+  payload — the existing redaction baseline applies (`D-AGENT-15`).
+- **No vendor SDK in the runtime**: keys, log redaction and cost accounting stay
+  in the gateway (`D-AGENT-16`).
+
+> Status: **design frozen — not implemented**. No runtime code or package exists.
+> Implementation is **BLOCKED** (`D-PLAT-09` route A, not superseded).

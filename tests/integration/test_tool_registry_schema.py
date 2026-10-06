@@ -69,8 +69,8 @@ B15_FK_DELETE_RULES = {
     "fk_tool_permissions_permission": "c",      # CASCADE
 }
 FORBIDDEN_TABLES = {
-    # P09 tables were delivered by 0011 (no longer forbidden)
-    "events", "audit_logs", "groups", "resource_relations",
+    # P09 tables were delivered by 0011; P10 delivered events/audit_logs
+    "groups", "resource_relations",
 }
 G_H_I_J = {
     "tg_acl_subject_exists",
@@ -92,7 +92,7 @@ _FIXTURE_NOT_PUBLISHED = "fixture_note_published"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     yield
     reset_test_database()
 
@@ -196,18 +196,19 @@ def test_ts1_tables_exist(db) -> None:
 
 
 def test_ts2_table_counts(db) -> None:
-    """TS2 — P09 后：29 业务表 + 1 当月子分区 = 30 public 表；物理 31（含 alembic_version）。"""
+    """TS2 — P10 后：31 业务表 + 3 当月子分区 = 34 public 表；物理 35（含 alembic_version）。"""
     business = {r[0] for r in _rows(
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )} - {"alembic_version"}
-    partition = {t for t in business if t.startswith("ai_request_logs_")}
-    assert len(partition) == 1, sorted(business)
-    assert len(business) == 30, sorted(business)
+    partition = {t for t in business
+                 if t.startswith(("ai_request_logs_", "events_", "audit_logs_"))}
+    assert len(partition) == 3, sorted(business)
+    assert len(business) == 34, sorted(business)
     physical = _scalar(
         "SELECT count(*) FROM information_schema.tables "
         "WHERE table_schema NOT IN ('pg_catalog','information_schema')"
     )
-    assert physical == 31
+    assert physical == 35
 
 
 def test_ts3_tools_schema(db) -> None:
@@ -665,7 +666,7 @@ def test_tv4_trigger_is_the_enforcing_object(db) -> None:
 # ========================================================= TM1-TM8 (migration)
 def test_tm1_upgrade_0007_to_0008(db) -> None:
     """TM1 — 0007 -> 0008 upgrade succeeds."""
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
 
 
 def test_tm2_downgrade_0008_to_0007(db) -> None:
@@ -744,7 +745,7 @@ def test_tm7_b1_4_objects_intact(db) -> None:
 
 def test_tm8_head_and_trigger_set(db) -> None:
     """TM8 — head is 0009 and B1-5 introduces exactly two triggers."""
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     rows = _rows(
         "SELECT tgname, tgtype FROM pg_trigger WHERE NOT tgisinternal "
         "AND tgrelid::regclass::text = ANY(:t)", t=list(B15_TABLES)
@@ -794,9 +795,19 @@ def test_tsec3_zero_seed(db) -> None:
     assert "INSERT INTO" not in src
 
 
-def test_tsec4_g_h_i_j_absent(db) -> None:
-    """TSEC4 — G/H/I/J stay P09-after, never implemented in B1-5."""
-    assert _scalar("SELECT count(*) FROM pg_trigger WHERE tgname = ANY(:n)", n=list(G_H_I_J)) == 0
+def test_tsec4_g_h_i_j_present_canonical(db) -> None:
+    """TSEC4 — 历史断言（B1-5 轮）为 absent；`D-P11-01` 实施后翻转为
+    恰好 4 个、且只挂在其 canonical 表上（B1-5 自身交付面不受影响）。"""
+    placement = dict(_rows(
+        "SELECT tgname, tgrelid::regclass::text FROM pg_trigger "
+        "WHERE NOT tgisinternal AND tgparentid = 0 AND tgname = ANY(:n)",
+        n=list(G_H_I_J)))
+    assert placement == {
+        "tg_acl_subject_exists": "resource_permissions",
+        "tg_acl_user_hard_delete": "users",
+        "tg_acl_role_delete_block": "roles",
+        "tg_agent_acl_expire": "agents",
+    }
 
 
 def test_tsec5_no_unauthorized_objects_or_industry_terms(db) -> None:

@@ -6,6 +6,9 @@ time; engines are created lazily by :func:`session.get_engine`.
 
 from .config import DatabaseConfig, DatabaseConfigurationError
 from .health import ComponentHealth, check_database
+from .persistence import Repository
+from .principal import PrincipalAssertionError, assert_connection_principal, role_from_url
+from .runtime import RuntimeDatabase
 from .migration import (
     MIGRATIONS_DIR,
     MIGRATION_TABLE,
@@ -30,6 +33,11 @@ __all__ = [
     "DatabaseConfigurationError",
     "ComponentHealth",
     "check_database",
+    "Repository",
+    "PrincipalAssertionError",
+    "assert_connection_principal",
+    "role_from_url",
+    "RuntimeDatabase",
     "MIGRATIONS_DIR",
     "MIGRATION_TABLE",
     "Migration",

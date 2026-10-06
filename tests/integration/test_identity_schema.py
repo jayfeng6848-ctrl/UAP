@@ -41,9 +41,10 @@ if not database_reachable():
 IDENTITY_TABLES = {"users", "identities", "credentials", "devices", "sessions"}
 # B1-2 delivered tenants/spaces/memberships; B1-3 delivered roles/permissions/role_permissions/
 # platform_memberships — none of those are "forbidden" any more.
+# P10 (0013) delivered events/audit_logs; these remain genuinely absent at this head.
 FORBIDDEN_BUSINESS_TABLES = {
-    # P09 tables were delivered by 0011 (no longer forbidden)
-    "events", "audit_logs",
+    "resource_relations", "approval_requests",
+    "agent_runs", "agent_run_steps", "event_types",
 }
 
 
@@ -51,7 +52,7 @@ FORBIDDEN_BUSINESS_TABLES = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     yield
     reset_test_database()
 
@@ -212,11 +213,11 @@ def test_updated_at_trigger_maintains_value(db) -> None:
 # ============================================================ Test C + D
 def test_rerun_and_downgrade_roundtrip(db) -> None:
     upgrade(make_config(lock_mode="fail"), "head")  # C: rerun is a no-op
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     downgrade(make_config(lock_mode="fail"), "base")  # D: full teardown
     assert current_revision() is None
     upgrade(make_config(lock_mode="fail"), "head")  # D: re-upgrade works
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
 
 
 # ============================================================ Security

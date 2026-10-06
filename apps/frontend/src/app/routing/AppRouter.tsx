@@ -1,7 +1,9 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { CompanyRouteTree } from '../../modules/company';
+import { AIRouteTree } from '../../modules/ai';
 import { AppShell } from '../shell/AppShell';
+import { AiEntry } from './AiEntry';
 import { RequireAuth } from './RequireAuth';
 import { TenantBoundary } from './TenantBoundary';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -29,6 +31,24 @@ export function AppRouter() {
             <RequireAuth>
               <TenantBoundary>
                 <CompanyRouteTree />
+              </TenantBoundary>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={ROUTES.aiEntry}
+          element={
+            <RequireAuth>
+              <AiEntry />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={`${ROUTES.ai}/*`}
+          element={
+            <RequireAuth>
+              <TenantBoundary>
+                <AIRouteTree />
               </TenantBoundary>
             </RequireAuth>
           }

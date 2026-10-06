@@ -5,7 +5,7 @@ import { LoadingState } from '../../components';
 export function AppBootstrapLoading() {
   return (
     <div data-testid="uap-bootstrap-loading">
-      <LoadingState label="Starting UAP Console…" />
+      <LoadingState label="正在启动 UAP…" />
     </div>
   );
 }
@@ -13,11 +13,11 @@ export function AppBootstrapLoading() {
 export function TenantUnresolved({ reason }: { reason: 'missing' | 'invalid' }) {
   return (
     <section role="alert" data-testid="uap-tenant-unresolved">
-      <h2>Tenant context unavailable</h2>
+      <h2>工作空间不可用</h2>
       <p>
         {reason === 'invalid'
-          ? 'The tenant in this address is not a valid identifier.'
-          : 'No tenant is selected for this view.'}
+          ? '这个地址中的工作空间标识无效。'
+          : '当前视图还没有选择工作空间。'}
       </p>
     </section>
   );

@@ -35,7 +35,9 @@ def test_illegal_transition_raises() -> None:
 
 
 def test_error_taxonomy_is_closed() -> None:
-    assert len(AGENT_RUNTIME_ERROR_CODES) == 17
+    # 17 (P16) + MODEL_UNAVAILABLE / MODEL_PROVIDER_MISMATCH (HD-P21-AI-04 §10)
+    #    + 5 LOCAL_* codes (HD-P21-AI-01..03 §14) = 24. Still ONE closed taxonomy.
+    assert len(AGENT_RUNTIME_ERROR_CODES) == 24
     assert is_agent_runtime_error_code(ErrorCode.TOOL_TIMEOUT)
     with pytest.raises(ValueError):
         AgentRuntimeError("SOMETHING_NEW", "not allowed")

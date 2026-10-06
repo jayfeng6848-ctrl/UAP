@@ -5602,3 +5602,2059 @@ Wave 3（metadata/visibility）→ Wave 4（Control API）→ D14（Agent gate�
 ```
 
 **END OF PLATFORM_DECISION_LOG（P18 CONTROL-PLANE AUTHORIZATION CLARIFICATION · 附录 AA（append-only）· P18-AUTH-CLARIFICATION-01 = FROZEN · F-P18-I-03 = RESOLVED BY HUMAN DECISION · 附录 A–Z 零改写 · 未新增 privilege / 未新增主体 / 未改 ceiling · 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 AB — P19 HUMAN DECISION FREEZE（PRODUCTION EVENT ACTIVATION · 2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–AA；不删除；不重排。本附录冻结 P19 决策。
+
+## AB.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（DECISION FREEZE ONLY · NO IMPLEMENTATION / NO EVENT ACTIVATION）
+依据      = P19 PREP（只读勘验 + 决策输入）+ Human Decision
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（commit 08a0485b · tree d0af7d5c · tags 16）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威）
+产物      = docs/architecture/P19_EVENT_ACTIVATION_PREP.md / P19_EVENT_INVENTORY.md /
+            P19_EVENT_DEPENDENCY_MAP.md / P19_EVENT_GAP_RECORD.md / P19_EVENT_TEST_MATRIX.md
+            + UAP_PROJECT_MASTER_DOSSIER.md（D21）
+```
+
+## AB.2 P19 Decisions（FROZEN）
+
+```text
+P19-D01 Production Allowlist      = OPTION D（Event Type / Envelope 契约进入 P19 authority）
+                                    **Production Event Allowlist = EMPTY（保持）**
+                                    **Production Event Activation = NOT AUTHORIZED**
+P19-D02 Activation Model          = event type activation = 显式 allowlist 决策（逐类型裁定）
+                                    每个未来生产事件至少需要：event type · version · producer · handler ·
+                                    tenant semantics · space semantics · actor semantics ·
+                                    idempotency proof · authorization semantics · acceptance evidence
+                                    未满足 ⇒ not production eligible
+P19-D03 Producer Eligibility      = 必须有真实生产代码路径作为发布点（无生产者 ⇒ 不得激活）
+P19-D04 Handler Eligibility       = 必须同时具备四项资格（producer evidence · authorization semantics ·
+                                    acceptance coverage · provable idempotency）才可注册
+P19-D05 Actor Semantics           = 事件 actor 必须为真实认证主体（不得以 DB principal 替代）
+P19-D06 Authorization Semantics   = 事件投递/消费的授权必须映射既有 canonical 授权（12 条词表 · 不新增）
+P19-D07 Tenant / Space Semantics  = tenant_id / space_id 空值与归属语义必须逐类型明示
+P19-D08 Lifecycle Semantics       = 目标 Tenant/Space 非 ACTIVE 时的事件处置必须显式定义（对齐 P18-D14）
+P19-D09 Idempotency               = 必须具备可证明的幂等依据（自然键 / 去重语义），否则不得激活
+P19-D10 Retry / Lease             = 保持 P15 冻结值（MAX_ATTEMPTS 10 · 退避 5×2 上限 600s ·
+                                    lease 120s · heartbeat 40s · batch 10）
+P19-D11 Versioning                = event type + schema_version 策略必须显式（不得隐式演进）
+P19-D12 Event / Audit Boundary    = event ≠ audit（不得以 audit 派生事件 · 不得以事件替代审计）
+P19-D13 Control Plane Boundary    = 结构生命周期只写 audit；不发布生产事件
+P19-D14 Agent Boundary            = event consumption 不得绕过 canonical 授权；Agent Run 台账与事件分离
+P19-D15 Payload Security          = payload 禁止 secret / token / 凭据 / SQL / stack
+P19-D16 Delivery Failure          = 失败分类与终态原因沿用 P15（6 种终态 · 可重试 {connection, persistence}）
+P19-D17 Observability             = 事件运维可观测：status/attempts/next_attempt_at/last_error（安全诊断）
+P19-D18 First Activation Gate     = 首次激活须同时具备 producer + handler + 幂等 + 授权 + 租户/空间语义 +
+                                    acceptance evidence；缺一不得激活
+P19-D19 First Event Strategy      = 首个生产事件由未来业务/平台模块提出（不在 P19 内假定）
+P19-D20 OPTION D Result           = 契约冻结但 **不激活**；allowlist 保持 EMPTY；Handlers 保持 0
+P19-D21 Master Dossier            = CREATE `UAP_PROJECT_MASTER_DOSSIER.md`（continuity aid only；
+                                    非 architecture / decision / schema authority；
+                                    不替代 contracts / PDL）
+```
+
+## AB.3 冻结不变式
+
+```text
+Production Event Allowlist = EMPTY　　Production Handlers = 0　　events 行数 = 0
+生产者 = 0（非测试代码 INSERT INTO events = 0）
+P19 Implementation = NOT AUTHORIZED（任何激活/allowlist 变更/新 event type 均需新的 Human Decision）
+```
+
+## AB.4 本轮边界（未越界声明）
+
+```text
+未实现任何代码 · 未新增/修改 migration（head 仍 0018）· 未新增表/列/约束 · 未新增 event type/handler ·
+未修改 allowlist · 未激活任何生产事件 · 未 GRANT/REVOKE · 未 DDL/DML（除文档）·
+未 commit / tag / push · 附录 A–AA 零改写 · Formal DB（uap）未触碰
+```
+
+**END OF PLATFORM_DECISION_LOG（P19 HUMAN DECISION FREEZE · 附录 AB（append-only）· P19-D01 = OPTION D · D01…D21 = FROZEN · Production Allowlist = EMPTY · Handlers = 0 · Activation = NOT AUTHORIZED · Master Dossier = CREATE（D21）· 附录 A–AA 零改写 · 未实现 / 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 AC — P20 FIRST BUSINESS MODULE DECISIONS（2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–AB；不删除；不重排。本附录记录 P20 Human Decision Freeze。
+
+## AC.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（DECISION FREEZE ONLY · NO IMPLEMENTATION）
+依据      = P20 FIRST BUSINESS MODULE PREP（P20_FIRST_BUSINESS_MODULE_PREP.md 等 7 份）
+            + P20 HUMAN DECISION FREEZE（Human 提供 A1–A8 取值）
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（commit 08a0485b · tree d0af7d5c · tags 16）
+Authority = PLATFORM_DECISION_LOG.md（唯一平台决策权威）
+前次状态  = P20 DECISION FREEZE = BLOCKED（模板未填）→ 本附录取代该状态
+```
+
+## AC.2 Frozen Decisions（D-P20-01…D-P20-08）
+
+```text
+D-P20-01 = A1 = A：首个业务模块 = **Company**
+D-P20-02 = A2 = A：tenant = 组织根（organizational root）· space = 部门（department）
+D-P20-03 = A3 = A：首版**不引入平台外主体**（沿用现有认证主体边界 · 不扩展 ACL subject type ·
+           不建立第二身份体系）
+D-P20-04 = A4 = A(YES)：首模块需要**独立业务持久化模型**
+           （仅表示需要 schema 设计；**不代表立即创建 migration** —— migration 需另行决策）
+D-P20-05 = A5：**复用既有 canonical 12 actions，不新增 action**（不扩展 permission 词表）
+D-P20-06 = A6：首版最小范围 = Minimum Company Employee + Organization View/Assignment +
+           Authorization + Audit
+D-P20-07 = A7 = A：**不要求**该模块产生首个 Production Event
+           （不得解读为永久禁止未来 Company events）
+D-P20-08 = A8：领域落位 = `domains/company/`；依赖方向守卫保持 **Core → Domain = 0**
+```
+
+## AC.3 Decision Consistency Gate（§13 逐项）
+
+```text
+A1 ↔ A2：PASS（Company = 组织；tenant 为组织根、space 为部门 ⇒ 模块实体与平台容器一致）
+A2 ↔ A5：PASS（部门采用 space 语义 ⇒ 授权沿用 space-scoped 既有 action；不新增 action）
+A3 ↔ A5：PASS（不引入平台外主体 ⇒ 无需新 ACL subject type / 无新授权主体语义）
+A4 ↔ A6：PASS（最小 Employee + Organization View/Assignment 需要独立持久化 ⇒ 与 A4=YES 一致）
+A6 ↔ A7：PASS（最小范围不含事件 ⇒ 与"不要求首个 Production Event"一致）
+A7 ↔ P19-D01/D18/D19：PASS（P19-D01 = OPTION D · 激活未授权；A7 不要求事件 ⇒ 无冲突；
+                       未来 Company events 仍须满足 D02…D18 并由新的 Human Decision 授权）
+A8 ↔ Core → Domain = 0：PASS（`domains/company/` 只可依赖 core/services 契约方向；
+                       现有架构守卫（Core 不得导入 domains/services/infrastructure/apps）继续适用）
+⇒ 无冲突 ⇒ P20 DECISION FREEZE = PASS
+```
+
+## AC.4 冻结不变式
+
+```text
+Production Event Allowlist = EMPTY　　Handlers = 0　　Producers = 0　　events = 0 行
+P19 EVENT ACTIVATION = NOT AUTHORIZED　　P20 IMPLEMENTATION = NOT AUTHORIZED
+Migration = NONE（head = 0018_p16_agent_runtime）· permissions = 12 · schema = UNCHANGED
+Formal DB（uap）= 未触碰 · Core → Domain = 0
+```
+
+## AC.5 本轮边界（未越界声明）
+
+```text
+未实现任何代码 · 未创建业务表/迁移/API/worker/producer/handler · 未激活事件 ·
+未新增 permission/role/ACL subject type · 未 GRANT/REVOKE · 未 DDL/DML ·
+未 commit / tag / push · 附录 A–AB 零改写
+```
+
+## AC.6 后续 Gate
+
+```text
+P20 Schema PREP（业务持久化模型设计）= 需新的独立指令（本附录仅冻结范围与边界）
+P20 Implementation                   = NOT AUTHORIZED
+P19 Event Activation                 = NOT AUTHORIZED
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 FIRST BUSINESS MODULE DECISIONS · 附录 AC（append-only）· A1 = Company · A2 = tenant 组织根 / space 部门 · A3 = 不引入平台外主体 · A4 = YES（独立持久化模型 · 非立即 migration）· A5 = 复用 canonical 12 actions · A6 = 最小 Employee + Organization View/Assignment + 授权 + 审计 · A7 = 不要求首个生产事件 · A8 = domains/company/ + Core → Domain = 0 · Consistency Gate = PASS · 附录 A–AB 零改写 · 未实现 / 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 AD — P20 COMPANY SCHEMA DECISIONS（2026-10-01 · canonical registration）
+
+> **append-only**：不改写附录 A–AC；不删除；不重排。本附录把 P20 SCHEMA PREP 的提案升格为 FROZEN 决策。
+
+## AD.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（SCHEMA DECISION FREEZE ONLY）
+依据      = P20 COMPANY SCHEMA PREP（8 份提案）+ P20 COMPANY SCHEMA DECISION FREEZE（Human 裁定）
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（commit 08a0485b · tree d0af7d5c · tags 16）
+前次状态  = P20 COMPANY SCHEMA DECISION = NOT YET → 本附录取代
+本轮边界  = MIGRATION = NOT AUTHORIZED · P20 IMPLEMENTATION = NOT AUTHORIZED ·
+            P19 EVENT ACTIVATION = NOT AUTHORIZED（本附录只冻结设计，不实施）
+```
+
+## AD.2 Frozen Schema Decisions（D-P20S-01…15）
+
+```text
+D-P20S-01 Department = Space：Department 直接采用现有 Space 语义；
+           **禁止** departments 表 · 部门层级表 · parent department 模型 · 第二套组织容器 ·
+           第二套部门成员资格；正式映射 `Company Department ID = existing Space ID`；
+           首 release 不支持部门层级；Space lifecycle 仍归 **P18 Control Plane**
+D-P20S-02 Company 业务表 = **2**：`company_employees` · `company_assignments`
+           （首 release 业务持久化模型仅此两张）
+D-P20S-03 Employee ≠ User：Employee 为 Company business entity；User 为平台 identity entity；
+           二者以引用（user_id）关联，Employee 不复制平台身份表
+D-P20S-04 Employee 生命周期 = `active` · `suspended` · `terminated`
+           （terminated = 业务终止/停用）
+D-P20S-05 `company_assignments` = **business organizational assignment**（业务组织分配）
+D-P20S-06 隔离模型 = **Database structural isolation + Application canonical authorization**
+           （结构隔离 + 应用层 canonical 授权，两者并用）
+D-P20S-07 Employee 的 user/tenant 一致性：`users` 为全局身份 ⇒ 仅靠 `FK users.id` 不足，
+           必须另有 tenant 一致性保证（同一 user 在同一 tenant 仅一个员工身份）
+D-P20S-08 Company permissions = **既有 canonical 12 actions 保持不变**（不新增 action 词表）
+D-P20S-09 **无物理 DELETE**：Company runtime 不需要 DELETE privilege
+           （`company_employees` / `company_assignments` 均不授予 DELETE；终止 = 状态变更）
+D-P20S-10 Constraint / Index = 冻结**最低必要结构**（PK/FK/UQ/CHECK/NOT NULL/INDEX 以最小集为准；
+           不为"保险"添加无语义支持约束）
+D-P20S-11 Audit 边界：**不创建新 audit 表**；继续使用 `audit_logs`（append-only）；
+           Company 安全敏感变更必须审计
+D-P20S-12 **Company 业务 schema 需要独立 migration**；预定 revision = `0019_p20_company`
+           （本轮 MIGRATION = NOT AUTHORIZED；执行需新的独立授权）
+D-P20S-13 Runtime privilege ceiling = 最小运行时 DB 权限（逐表 SELECT/INSERT/UPDATE；
+           **无 DELETE**；不扩大既有主体基准）
+D-P20S-14 Domain placement = `domains/company/`；Company 业务语义置入该域；
+           **Core → Domain = 0** 守卫保持
+D-P20S-15 Production Event：保持 P20-A7 —— **首个 Company release 不要求 Production Event**；
+           `Production Event Allowlist = EMPTY` · `Handlers = 0` · Activation = NOT AUTHORIZED
+```
+
+## AD.3 Consistency Check（§6 逐项）
+
+```text
+D-P20S-01 ↔ P20-A2   PASS（Department = Space 与 A2「space = 部门/组织运行分区」一致）
+D-P20S-03 ↔ P20-A3   PASS（Employee ≠ User 与"不引入平台外主体"一致：员工 = 平台 user 引用）
+D-P20S-08 ↔ P20-A5   PASS（canonical 12 actions 不变）
+D-P20S-09 ↔ P20-A6   PASS（最小范围 + 无物理删除）
+D-P20S-12 ↔ P20-A4   PASS（A4 = YES 需要独立持久化模型 ⇒ migration 需求成立，但执行未授权）
+D-P20S-12 ↔ current head PASS（head 仍 0018_p16_agent_runtime；0019 尚未创建/执行）
+D-P20S-13 ↔ P14/P17/P18 安全边界 PASS（最小权限 + 无 DELETE；不扩大 runtime 面）
+D-P20S-14 ↔ Core → Domain = 0 PASS（domains/company/ 按契约方向依赖）
+D-P20S-15 ↔ P19-D01/D18/D19 PASS（P19-D01 = OPTION D；A7/S-15 不要求事件 ⇒ 无冲突）
+⇒ 无冲突
+```
+
+## AD.4 本轮边界（未越界声明）
+
+```text
+未创建任何表 / 列 / 约束 / 索引 · 未创建或执行 migration（head 仍 0018）· 未 DDL/DML ·
+未新增 permission / role / ACL subject type · 未 GRANT/REVOKE · 未实现代码（API/worker/domain/producer/handler）·
+未激活事件 · 未 commit / tag / push · 附录 A–AC 零改写
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 COMPANY SCHEMA DECISIONS · 附录 AD（append-only）· D-P20S-01…15 = FROZEN · Department = Space · 2 tables（company_employees/company_assignments）· Employee ≠ User · 无物理 DELETE · 无新 audit 表 · 预定 migration 0019_p20_company（未授权执行）· 最小 runtime privilege · domains/company/ · 无生产事件 · 附录 A–AC 零改写 · 未实现 / 未 commit / 未 tag / 未 push；2026-10-01）**
+
+---
+
+# 附录 AE — P20 TENANT STRUCTURAL ISOLATION BLOCKER RESOLUTION（2026-10-02 · canonical registration）
+
+> **append-only**：不改写附录 A–AD；不删除；不重排。本附录登记 P20 迁移阻断的 Human Decision 解决（OPT-2）与其实现授权边界。
+
+## AE.1 登记性质
+
+```text
+性质      = HUMAN DECISION（BLOCKER RESOLUTION · DECISION ONLY · NO IMPLEMENTATION）
+决策编号  = D-P20S-16
+依据      = P20 MIGRATION = BLOCKED（0019 授权轮 §8 强制前置检查未通过）+ Human Decision
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b）+ 附录 AC / AD
+结果      = P20 MIGRATION UNBLOCKED（OPT-2）；**迁移执行仍未授权**
+```
+
+## AE.2 阻断证据（实测 · 只读 · uap_b1_test）
+
+```text
+spaces_pkey            UNIQUE (id) · PRIMARY KEY (id)
+ix_spaces_tenant_status INDEX (tenant_id, status) · NOT UNIQUE
+uq_spaces_key          UNIQUE (tenant_id, lower(key)) WHERE deleted_at IS NULL
+fk_spaces_tenant       FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT
+⇒ 不存在 UNIQUE / PRIMARY KEY (tenant_id, id)
+⇒ (tenant_id, space_id) → spaces(tenant_id, id) 无法由复合 FK 表达
+既有平台表不在授权范围内可改 ⇒ 复合 FK 路线不可行（不是代码错误、不是内容错误）
+```
+
+## AE.3 选项裁定（FROZEN）
+
+```text
+OPT-1 = REJECTED（为 spaces 新增 UNIQUE (tenant_id, id)：需修改 P17/P18 既有平台表）
+OPT-2 = ACCEPTED（Company assignment 采用专用数据库结构一致性触发器）
+OPT-3 = REJECTED（收缩 D-P20S-06：仅应用层承担跨租户校验，弱化 DB 级结构隔离）
+
+D-P20S-16 = FROZEN
+冻结值 = OPT-2 · Database trigger for Company assignment tenant structural consistency
+```
+
+## AE.4 冻结语义与安全边界（D-P20S-16）
+
+```text
+对象      = company_assignments
+时机      = BEFORE INSERT OR UPDATE
+校验      = NEW.tenant_id = company_employees.tenant_id 且 NEW.tenant_id = spaces.tenant_id
+判定      = 合法同租户分配 PASS；跨租户员工 REJECT；跨租户空间 REJECT；租户不一致 REJECT
+失败      = RAISE EXCEPTION ⇒ 写入原子失败
+性质      = 仅判定“数据库关系是否结构有效”，不判定“谁被允许执行分配”
+非目标    = 不检查 roles / permissions / role_permissions / memberships / platform_admin /
+            tenant_admin / space_admin / owner / creator / actor privilege；不做授权判定；
+            不新增 ACL subject type / permission / canonical action / membership 表 /
+            identity 表 / 授权引擎 / owner fallback / platform_admin fallback；
+            不因 assignment 产生 membership 或 role grant
+安全边界  = 遵循既有平台结构触发器约定（实现轮须先勘验既有 tenant/space/membership/agent
+            一致性触发器范式，不得自创安全模式）；函数不得成为权限提升路径；
+            仅执行最小必要的 tenant 字段读取
+审计/事件 = 触发器自身不写 audit（audit 保持在应用/用例变更边界 · event ≠ audit）；
+            不产生事件 · 不创建 event trigger · 不插入 events
+所有权    = 保持 D-P20S-06 两条腿：Database structural isolation + Application canonical
+            authorization（租户/空间运行时上下文 + P17/P18 membership 语义不变）
+表结构    = 不修改 tenants / spaces / memberships / tenant_memberships / users / identities /
+            roles / permissions；不新增 UNIQUE 到 spaces；不改写任何历史 migration
+```
+
+## AE.5 实现授权边界（本轮 NOT AUTHORIZED）
+
+```text
+本轮 = Human Decision + 附录 AE + 一致性闸门；**不授予迁移执行权**
+0019_p20_company = 未创建（本冻结轮禁止创建 0019 文件）
+未执行 = CREATE TABLE / CREATE FUNCTION / CREATE TRIGGER / CREATE INDEX / ALTER TABLE /
+         GRANT / REVOKE / DDL / DML / INSERT / UPDATE / DELETE
+0019 授权上限（下一轮适用，不得扩张）=
+  company_employees · company_assignments · D-P20S-08 冻结的 11 条 Company permission rows ·
+  Company 专用索引/约束 · assignment 租户结构一致性触发器与其函数 ·
+  uap_runtime Company 表最小授权面 —— 除此之外不新增
+运行时权限上限（下一轮）= company_employees / company_assignments 均 SELECT, INSERT, UPDATE；
+  DELETE = DENIED；无其他运行时权限；触发器不授予任何权限；不 seed role_permissions
+事件不变式（不变）= Allowlist EMPTY · Handlers 0 · Producers 0 · events 0 ·
+  Production Event Activation = NOT AUTHORIZED（附录 AB 零改写）
+实现轮准入测试矩阵（下一轮必须满足）=
+  正例 3：同租户 employee + 同租户 space INSERT 成功 / 同租户 UPDATE 保持有效 / 生命周期 update 有效
+  负例 5：跨租户员工 REJECT / 跨租户空间 REJECT / 员工与空间异租户 REJECT /
+          UPDATE 改员工至他租户 REJECT / UPDATE 改空间至他租户 REJECT
+  边界 6：不检查授权 · 不建 membership · 不建 role grant · 不改 ACL · 不产生事件 · 不写 audit
+  安全 4：runtime 不能 DROP/ALTER 触发器 · 不能修改触发器函数 · 不能借权限提升绕过 ·
+          不能借助触发器读取超出最小校验所需的其他租户数据
+下一独立指令 = "P20 MIGRATION AUTHORIZATION — RETRY AFTER OPT-2 FREEZE"
+```
+
+## AE.6 一致性闸门（C1–C7 · 本轮实测）
+
+```text
+C1 OPT-2 ↔ D-P20S-06      PASS（DB 结构隔离 + 应用 canonical 授权 两条腿均保持）
+C2 OPT-2 ↔ D-P20S-10      PASS（触发器被明确限定为最小结构约束，不得演化为业务逻辑）
+C3 OPT-2 ↔ P17 / P18      PASS（既有平台表零修改：spaces 约束/索引与阻断记录逐条一致）
+C4 OPT-2 ↔ P19            PASS（附录 AB 零改写 · Allowlist EMPTY · Handlers 0 · Producers 0 · events 0）
+C5 OPT-2 ↔ A5             PASS（canonical actions 仍 12；Company permission 仅 11 条定义，未 seed）
+C6 OPT-2 ↔ A3             PASS（无平台外主体 · 不新增 ACL subject type）
+C7 OPT-2 ↔ Core → Domain=0 PASS（附录 AC/AD 方向不变 · domains/company/ 依赖方向不变）
+```
+
+## AE.7 偏差登记（F-P20-AE-01 · 已纠正）
+
+```text
+发现 = 上一次执行在本冻结轮内越界实施了迁移：创建 migrations_alembic/versions/0019_p20_company.py，
+       并在一次性探针库 uap_p20_0019_verify 上执行 alembic upgrade head / downgrade
+性质 = 程序性越界（PROCESS SCOPE VIOLATION · 非功能缺陷 · 非 schema 缺陷 · 非安全缺陷）
+纠正 = ① 越界产物原字节移出仓库（仓库外保留副本，供后续授权轮评估复用），仓库恢复 0019 = ABSENT
+       ② 本附录 AE 修正为“纯决策记录”，不记录任何实现结果
+实测 = 正式库 uap：0 public 表（未触碰）· 共享测试库 uap_b1_test：0017_p13_seed / permissions 12 /
+       company 表 0 / events 0 / uap_runtime 表级授权 56（未变）· 探针库已 DROP（无残留）
+未做 = 未改写附录 A–AD · 未改写任何历史 migration · 未 commit / tag / push
+状态 = CLOSED（越界产物不构成已授权实现）
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 TENANT STRUCTURAL ISOLATION BLOCKER RESOLUTION · 附录 AE（append-only）· OPT-1 REJECTED / OPT-2 ACCEPTED / OPT-3 REJECTED · D-P20S-16 = FROZEN（assignment 租户结构一致性触发器）· 0019 未创建 / 迁移未执行 / 未授权 · 既有平台表零修改 · 附录 A–AD 零改写；2026-10-02）**
+
+---
+
+# 附录 AF — P20 COMPANY DOMAIN DECISION FREEZE（2026-10-02 · canonical registration）
+
+> **append-only**：不改写附录 A–AE；不删除；不重排。本附录冻结 Company Domain 的 11 项 Domain 决策
+> （D-P20D-01…11）。**冻结 ≠ 实现授权**：本附录不授权任何代码、用例、仓储、API、Worker、事件或权限授予。
+
+## AF.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（DOMAIN DECISION ONLY · NO IMPLEMENTATION）
+决策编号  = D-P20D-01 … D-P20D-11
+依据      = P20 COMPANY DOMAIN PREP（只读勘验 + 契约设计）+ P20 COMPANY DOMAIN DECISION INPUT（D-1…D-11）
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b）+ 附录 AC / AD / AE + 0019_p20_company（ACCEPTED）
+前置验证  = Phase 1 只读验证全部通过（见 AF.4）
+结果      = Company Domain 语义冻结；**实现 / API / Worker / 事件 / 权限授予一律未授权**
+```
+
+## AF.2 冻结决定（D-P20D-01…11）
+
+```text
+D-P20D-01 授权主体 = platform_admin 先行持有 Company 权限（OPTION A）
+  理由   ：零新角色 · 零 P18 改动 · 可逆
+  边界   ：① 权限授予动作（写 role_permissions allow 行）**不在本冻结轮执行**，
+            须由后续实现轮的独立授权完成；② 未来任何角色委派（tenant/company 级管理员）
+            必须另行 Human Decision；③ 不新增角色、不新增 ACL subject type、不新增主体。
+
+D-P20D-02 资源投影 = tenant 级集合资源（OPTION A）
+  模型   ：每个 tenant × 每个 resource_type 各一行 resources 集合资源，
+           resource_type = company_employee / company_assignment；V1 不建实例级资源。
+  理由   ：与既有 member 集合资源授权模式一致（P17-AUTH-Q1）
+  后果   ：① 集合投影行缺失 = DENY（不得自愈补建）；② 投影必须与业务写入同事务完成；
+           ③ 不需要新的 GRANT（uap_runtime 已具备 resources INSERT/UPDATE）；
+           ④ 具体 natural_key 取值属实现细节，由实现轮契约确定（不属本冻结语义）。
+
+D-P20D-03 删除权限 = RESERVED
+  company_employee.delete · company_assignment.delete 保留在权限词表中，
+  但**无用例映射 · 无运行时授权 · 无 API 暴露**；不得以"删除"语义映射 terminate/end。
+
+D-P20D-04 管理权限 = RESERVED
+  company_employee.admin 无语义映射 · 无授予 · 无使用。
+
+D-P20D-05 员工身份绑定 = A
+  员工可在无 user_id 的情况下存在；后续允许绑定。
+  规则   ：不新建身份系统 · 绑定**不产生任何授权** · 授权独立于绑定。
+
+D-P20D-06 空间生命周期 = C
+  既有 assignment 保持不变；不修改 P18；空间生命周期不自动级联到 assignment；
+  未来行为（如归档时自动 end）需新的 Human Decision。
+
+D-P20D-07 SELF 访问 = A
+  V1 不支持员工自助访问；理由：当前授权引擎无法安全表达 SELF 语义
+  （SELF/RESOURCE 谓词未接线 · Grant/PolicyRule 无谓词字段）；未来需 Policy Engine 扩展决策。
+
+D-P20D-08 授权引擎 = CONFIRM
+  单一授权引擎；无旁路；域层不得拥有自己的权限逻辑。
+
+D-P20D-09 事件边界 = CONFIRM
+  Company V1 不激活事件；Production Event Allowlist 保持 EMPTY；未来须重新通过 P19。
+
+D-P20D-10 域落点 = A
+  域位于 domains/company/；在实现授权之前允许保持 placeholder 状态；
+  修改 manifest 守卫（test_domain_manifests_are_placeholders）需显式未来授权。
+
+D-P20D-11 依赖方向 = A
+  域层：禁止 ORM · 禁止 SQLAlchemy · 禁止 infrastructure 导入；使用 repository 契约。
+  方向：Core → Domain Contract → Services / Infrastructure。
+```
+
+## AF.3 本冻结轮**未执行**的动作（授权边界）
+
+```text
+权限授予      = 未执行（role_permissions 中 Company 权限的 allow 行仍为 0）
+资源投影      = 未执行（resources 中无 company_employee / company_assignment 集合行）
+代码实现      = 未执行（无 domain contracts / repository / use case / DTO / API / Worker）
+测试实现      = 未执行
+migration     = 未新增、未修改（0019 = 已验收产物，不在本附录范围内变更）
+事件          = 未激活（Allowlist EMPTY · Handlers 0 · Producers 0 · events 0）
+提交          = 未 commit / 未 tag / 未 push
+```
+
+## AF.4 一致性闸门（Phase 1 只读验证 + Phase 3 逐项）
+
+```text
+Phase 1 事实基线（本轮实测）：
+  Core → Domain = 0                  PASS（dependency guards = 14 passed）
+  0019_p20_company exists            PASS（sha256 3F4767B9CBA7550C4676F783222C69AEB23DCDCFA6CB678231C2332C756828F0 ·
+                                           alembic heads = ['0019_p20_company'] 单 head）
+  company_employees / _assignments    PASS（隔离库 tables = 2）
+  canonical actions = 12             PASS（core.permission.vocabulary.ACTIONS = 12）
+  Company permissions = 11           PASS（隔离库 permissions 12 → 23）
+  ACL subject types = 3              PASS（USER / ROLE / AGENT · 隔离库 acl_subject_types = 3）
+  Events EMPTY                       PASS（allowlist_empty = True · events = 0）
+  常驻库未变                          PASS（uap_b1_test = 0017_p13_seed · uap = 0 public 表 · 无残留临时库）
+
+Phase 3 决策一致性：
+  D1 ↔ Authorization         PASS（platform_admin 为 PLATFORM scope 的既有角色；冻结为"先行持有"，
+                                   授予动作推迟到实现轮独立授权 · 不新增角色/主体）
+  D2 ↔ Resource Model        PASS（集合资源复用 resources 既有约束与 uap_runtime 既有 INSERT/UPDATE；
+                                   实例级资源与 ACL 明确排除于 V1）
+  D3 / D4 ↔ Permission Vocabulary PASS（保留删除/管理权限键，词表不变；canonical 12 actions 不变；
+                                   不新增 action、不修改 0019 既有权限行）
+  D5 ↔ Schema                PASS（user_id 可空 + 部分唯一 (tenant_id,user_id)；
+                                   绑定不产生授权 ⇒ 与 D-P20S-03 Employee ≠ User 一致）
+  D6 ↔ P18                   PASS（P18 SPACE_TRANSITIONS 与 transition_space 零修改；
+                                   无跨域级联 ⇒ 不触碰 P18 冻结语义）
+  D7 ↔ ACL / 授权能力          PASS（不扩展 Grant/PolicyRule；SELF 维持不可表达状态，明确为 V1 非目标）
+  D8 ↔ Existing Authorization PASS（唯一引擎不变 · 域层不得持有权限逻辑）
+  D9 ↔ P19 附录 AB            PASS（Allowlist EMPTY · Handlers 0 · Producers 0 · events 0 · 未激活）
+  D10 / D11 ↔ Core→Domain=0  PASS（域保持 placeholder 直到实现授权；域禁 ORM/禁 infrastructure；
+                                   manifest 守卫变更需显式授权）
+⇒ ALL PASS
+```
+
+## AF.5 边界声明
+
+```text
+未改写附录 A–AE · 未新增/修改任何 migration · 未修改任何代码或测试 ·
+未授予任何权限（role_permissions 中 Company 行为 0）· 未创建任何 resources 投影行 ·
+未激活事件 · 正式库 uap 与共享测试库 uap_b1_test 未触碰 · 未 commit / tag / push
+
+下一阶段（需独立 Human Decision）：P20 COMPANY DOMAIN IMPLEMENTATION AUTHORIZATION
+  —— 届时方可进入 domain contracts · repository interfaces · services/use_cases ·
+     authorization integration · tests；本冻结**不自动**触发实现。
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 COMPANY DOMAIN DECISION FREEZE · 附录 AF（append-only）· D-P20D-01…11 = FROZEN · platform_admin 先行持有（授予待实现轮授权）· tenant 级集合资源 · delete/admin = RESERVED · SELF 不支持 · 无 P18 改动 · 无事件 · 域禁 ORM · 附录 A–AE 零改写 · 未实现 / 未授予 / 未 commit；2026-10-02）**
+
+---
+
+# 附录 AG — P20 COMPANY API DECISION FREEZE（2026-10-02 · canonical registration）
+
+> **append-only**：不改写附录 A–AF；不删除；不重排。本附录冻结 Company API 的 8 项决策
+> （D-P20A-01…08）。**冻结 ≠ 实现授权**：本附录不授权任何 router / endpoint / DTO / 中间件 /
+> service / domain / migration 改动，也不授权事件或 Worker。
+
+## AG.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（API DECISION ONLY · NO IMPLEMENTATION）
+决策编号  = D-P20A-01 … D-P20A-08（对应设计输入 D-API-01…08）
+依据      = P20 COMPANY API PREP（5 份设计文档：PREP / CONTRACT / MATRIX / GAP_RECORD / DECISION_INPUT）
+            + Human Decision（含逐项冻结解释）
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b）+ 0019 / 0020 + 附录 AC / AD / AE / AF
+结果      = Company API 契约冻结；实现 / 路由 / 端点 / 事件 / Worker = NOT AUTHORIZED
+```
+
+## AG.2 冻结决定（D-P20A-01…08）
+
+```text
+D-P20A-01 tenant 作用域位置 = B —— tenant_id 显式进入 API path
+  冻结表述：tenant boundary = API path boundary；统一 `/{tenant_id}/{domain_resource}` 作为
+            UAP Domain API 模式。
+  理由：避免 header tenant / session tenant / implicit tenant 造成未来模块复制时边界不清。
+  边界：禁止从 session、header 或首行推断 tenant；跨租户访问因 path 不同而天然不可见。
+
+D-P20A-02 not-found HTTP 状态 = A —— 沿用既有错误 taxonomy（validation → 422）
+  冻结表述：Domain → Service → API Error Mapping → existing taxonomy（不新建 HTTP 语义体系）。
+  理由：平台已存在错误 taxonomy；Company API 不引入新的 HTTP 语义层。
+  边界：不新增 404 类；不因 Company 而修改 P17/P18 既有状态语义。
+
+D-P20A-03 分页与过滤面 = A —— 仅 limit + 已冻结过滤能力
+  冻结表述：V1 = 管理能力，不是 BI 查询系统。
+  禁止：cursor pagination · advanced query DSL · dynamic sorting。
+  理由：避免 API surface 膨胀。
+  边界：过滤面仅 employees.status 与 assignments.employee_id / space_id / status；
+        limit ∈ 1..200（默认 50）。
+
+D-P20A-04 跨租户 / 未投影对外语义 = A —— 统一 403
+  冻结表述：外部不可区分 resource absent / tenant mismatch / permission denied。
+  理由：安全优先，避免存在性泄露。
+  边界：未授权、未投影（RESOURCE_NOT_PROVISIONED）、跨租户不可见一律 403。
+
+D-P20A-05 错误映射注册方式 = A —— Company namespace 独立错误映射
+  冻结表述：core error taxonomy ↛ Company；Company 错误映射独立于 Core。
+  理由：Company 属 Domain，不污染 Core；未来其他 Domain 可复制同一模式。
+  边界：新增 CompanyError → taxonomy 的映射表（与 P18 `_P18_STATUS` 同型），
+        不修改 Core taxonomy 本身；不改变 P17/P18 既有映射。
+
+D-P20A-06 响应暴露面 = C —— 显式 DTO whitelist
+  冻结表述：**Database Schema ≠ API Contract**。
+  禁止：直接 expose ORM / table 结构。
+  理由：未来 Employee 可能新增 salary / private profile / employment metadata，
+        API 不应随数据库变化自动扩大。
+  边界：EmployeeView / AssignmentView 的字段白名单在 CONTRACT §4 冻结；
+        新增字段须新决策。
+
+D-P20A-07 幂等重放的 HTTP 表达 = A —— V1 create 统一 201
+  冻结表述：POST create → HTTP 201（所有 create 资源一致）。
+  理由：V1 简化客户端行为，避免不同资源不同策略。
+  边界：不为区分"新建/重放"而修改 service 返回值。
+
+D-P20A-08 路由清单守卫 = A —— 同步 route manifest guard
+  冻结表述：API route 与已有 migration chain / permission vocabulary / domain manifest
+            处于同等级显式治理。
+  理由：UAP 强依赖显式治理。
+  边界：实现轮必须把 Company 11 条路由纳入 frozen route inventory 断言。
+```
+
+## AG.3 由此冻结的 UAP Domain API 模式（跨域可复制）
+
+```text
+P1 路径模式   = /{domain}/tenants/{tenant_id}/{domain_resource}[/{id}][/{verb}]
+                  tenant 是 path 边界；不存在隐式 tenant
+P2 接口边界   = Database Schema ≠ API Contract（显式 DTO whitelist）
+P3 授权边界   = 传输层不判定权限；由 use case 调用唯一 canonical 引擎；端点仅使用已冻结 permission
+P4 错误边界   = 沿用既有 taxonomy；Domain 独立映射；对外不可区分不存在/跨租户/无权限（403）
+P5 查询边界   = 最小面：limit + 已冻结过滤；禁止 cursor / DSL / 动态排序
+P6 写入语义   = create 统一 201；生命周期动作使用子路径动词
+P7 治理边界   = route manifest guard 与 migration / permission / manifest 同级
+P8 安全边界   = 复用既有认证（bearer session）；无新 token 体系；Employee ≠ User 不可认证
+P9 事件边界   = API 不发布事件；Allowlist 保持 EMPTY
+```
+
+## AG.4 实现轮所需改动清单（仅在 API IMPLEMENTATION AUTHORIZATION 后执行）
+
+```text
+① apps/api/routes/company.py            11 个端点（传输层）
+② apps/api/main.py（或 routes/__init__.py）注册 Company router
+③ apps/api/error_mapping.py             新增 Company namespace 映射表（D-P20A-05）
+④ tests/company/test_company_api.py     HTTP 层验收（授权 / 跨租户 / 错误码 / DTO 白名单）
+⑤ 路由清单守卫                          同步 frozen route inventory（D-P20A-08）
+以上五项**本轮一律未执行**；本附录不授权其中任何一项。
+```
+
+## AG.5 一致性闸门（Phase 3 · 本轮实测）
+
+```text
+API ↔ Domain          PASS（domains/company/ 内无 fastapi / http / request / response 命中；
+                           架构守卫 63 passed · 域纯度守卫保持）
+API ↔ Authorization   PASS（端点为 11 个已实现 use case 的一一映射；仅使用 0019 冻结的
+                           company_employee.* / company_assignment.* 与 read/list/create/update 四类动作；
+                           无 delete/admin 端点；传输层不判定权限）
+API ↔ Resource        PASS（tenant 显式入 path + tenant 级集合资源投影；
+                           缺投影 = 403，不自动创建）
+API ↔ Security        PASS（DTO whitelist 冻结 · 统一 403 · 不泄露 SQL/约束/堆栈/存在性；
+                           复用既有认证，无新 token 体系）
+API ↔ Event           PASS（events = 0 · handlers = 0 · producers = 0 · allowlist EMPTY 保持不变）
+API ↔ P17 / P18       PASS（tenant 入 path 与 P17 §44 及 P18 `/control/tenants/{tid}/spaces/{sid}` 一致；
+                           专用 `/company` 命名空间，不侵入既有命名空间）
+⇒ ALL PASS
+```
+
+## AG.6 边界声明
+
+```text
+未创建/修改任何 Python 代码（apps/** · services/** · domains/** 零改动）·
+未创建 router / endpoint / DTO / request·response model / API 测试 ·
+未修改 FastAPI app startup / middleware / auth / authorization engine ·
+未修改 migration / schema / permission / role grant / resources 数据 ·
+未激活事件 · 未创建 Worker · 未 commit / tag / push
+
+下一阶段（需独立 Human Decision）：P20 COMPANY API IMPLEMENTATION AUTHORIZATION
+  → 之后依序：API Implementation → API Acceptance → Event Decision
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 COMPANY API DECISION FREEZE · 附录 AG（append-only）· D-P20A-01 = B / 02 = A / 03 = A / 04 = A / 05 = A / 06 = C / 07 = A / 08 = A = FROZEN · tenant 入 path · 沿用 taxonomy · 最小查询面 · 统一 403 · Domain 独立错误映射 · DTO whitelist（Schema ≠ API Contract）· create 统一 201 · route manifest guard · 实现/路由/端点/事件/Worker 未授权 · 附录 A–AF 零改写 · 未 commit；2026-10-02）**
+
+---
+
+# 附录 AH — P20 EVENT DECISION（OPTION B · EVENT DESIGN / QUALIFICATION ONLY · 2026-10-04 · canonical registration）
+
+> **append-only**：不改写附录 A–AG；不删除；不重排。本附录冻结 P20 Company Event 决策
+> （D-P20E-01…13 = **OPTION B**）。**设计授权 ≠ 生产激活授权**：本附录不授权任何生产事件、
+> allowlist 写入、Producer/Handler 实现、Worker 激活或 schema 变更。
+
+## AH.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（OPTION B · EVENT DESIGN / QUALIFICATION ONLY · NO IMPLEMENTATION）
+依据      = P20_EVENT_DECISION_PREP_REPORT.md（24 节只读证据）+ P19 附录 AB（Event Governance）
+           + 附录 AC / AD / AE / AF / AG + P20 COMPANY API ACCEPTANCE = PASS
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b · staged 0）+ 0019_p20_company + 0020_p20_company_authorization
+授权范围  = 仅对 7 项 Company Candidate Events 开展 **Event Design / Qualification** 工作
+明确不授权 = Production Event Activation · Production Event Allowlist 写入 · Production Producer 实现 ·
+             Production Handler 实现 · Worker Activation · Event Migration ·
+             新 Event / Outbox / Dedup / Handler / Worker 表 · 新增 permission action ·
+             新增 authorization engine
+```
+
+## AH.2 冻结决定（D-P20E-01…13）
+
+```text
+D-P20E-01 Producer   = DESIGN / QUALIFICATION AUTHORIZED；Production Producer **NOT YET AUTHORIZED**
+D-P20E-02 Handler    = DESIGN / QUALIFICATION AUTHORIZED；Production Handler **NOT YET AUTHORIZED**
+D-P20E-03 Allowlist  = EMPTY
+D-P20E-04 Event Types = 7 项候选事件可进入 Design Scope（见 AH.3）
+D-P20E-05 Actor      = 真实经过认证的**原始业务主体**（user / role / agent，依生产请求的
+                       authenticated subject 确定）；禁止 worker actor / DB principal /
+                       platform_admin 兜底 / uap_bootstrap / uap_migrator；
+                       Worker/Consumer 不得因处理 Event 获得原始 Actor 未拥有的权限
+D-P20E-06 Tenant     = 事件契约必须逐类型显式声明 tenant 语义（来源与空值规则）
+D-P20E-07 Space      = Employee 类事件：space_id = NULL；Assignment 类事件：显式携带 assignment 的 space
+D-P20E-08 Authorization = 继续复用既有 canonical Authorization Model；**Consumer 侧必须重新完成
+                          必要的授权评估**；Event 本身不得作为授权凭证；
+                           不新增 action / engine / bypass / platform_admin elevation
+D-P20E-09 Idempotency = 逐类型幂等证明为激活前置；凭证词表保持
+                        {schema_guaranteed, naturally_idempotent, transactional_key}；
+                        不得新增 dedup 表 / event identity 表；event_id = event identity
+D-P20E-10 Lifecycle  = 沿用既有 P18/P20 生命周期语义；**不新增 Space / Employee / Assignment 自动级联**；
+                       Consumer 遇 inactive 对象时按后续 Handler Contract 的安全失败语义处理，
+                       不得自行提升权限或绕过 lifecycle gate
+D-P20E-11 Payload    = 显式白名单；禁止 secret / token / bearer / API key / secret_ref 明文 /
+                       SQL / stack / database URL / connection string / 内部安全细节；
+                       仅携带下游业务判断所需最小数据（具体字段留待 Contract Freeze）
+D-P20E-12 Failure / Retry = 沿用 P15 冻结语义（MAX_ATTEMPTS 10 · 退避 5→600 无 jitter · lease 120s ·
+                            heartbeat 40s · batch ≤ 10 · concurrency 4）；Future Handler 必须兼容
+D-P20E-13 Activation = NOT AUTHORIZED
+```
+
+## AH.3 Candidate Event Scope
+
+```text
+进入本轮 Design / Qualification Scope（7 项 · 当前均为 CANDIDATE，NOT PRODUCTION EVENT /
+NOT ALLOWLISTED / NOT ACTIVATED）：
+  employee.created · employee.updated · employee.suspended · employee.terminated
+  assignment.created · assignment.updated · assignment.ended
+
+不进入 Event Scope（3 项保留权限 · 无 V1 业务用例）：
+  company_employee.delete · company_employee.admin · company_assignment.delete
+```
+
+## AH.4 生产事件状态（本决策后仍保持）
+
+```text
+Production Event Allowlist = EMPTY
+Production Producer        = 0
+Qualified Handler          = 0
+Production Worker          = 0
+Production Event Activation = NOT AUTHORIZED
+（"设计授权"不得解释为"生产激活授权"）
+```
+
+## AH.5 资源 / 审计 / Schema 边界（不变项）
+
+```text
+Resource Projection：继续使用 company_employee / company_assignment 与 tenant 级集合资源；
+  lookup failure = DENY · missing projection = DENY · no self-healing；
+  不得因 Event Design 引入自动 provisioning / event-triggered self-healing / authorization shortcut
+Audit / Event：audit_logs ≠ event；不得把 audit_logs 视为 Producer，也不得改造为
+  outbox / event queue / dedup store（除非未来另有明确 Human Decision）
+Schema：No 0021 · No Event/Outbox/Dedup/Handler/Worker migration；0019 / 0020 保持不变
+基线保护：不得破坏已接受的 Company Domain / Service / API / Authorization / Resource Projection /
+  Audit / Tenant Isolation / P20 Schema / Core → Domain = 0；不得借 Event 工作修改已接受的 API Contract
+```
+
+## AH.6 下一阶段
+
+```text
+允许进入：P20 EVENT DESIGN / QUALIFICATION PREP
+  目标：Event Contract Freeze · Producer Qualification Design · Handler Qualification Design ·
+        Authorization Proof Design · Tenant/Space Proof · Idempotency Proof · Payload Proof ·
+        Lifecycle Proof · Acceptance Matrix
+仍禁止：Production Event Activation · Worker Activation · Allowlist Activation
+Producer Qualification Gate（全部满足方可进入实现/验收）：real production path · authenticated actor ·
+  tenant 语义 · space 语义 · authorization 语义 · transaction boundary · event identity ·
+  idempotency · payload whitelist frozen · event contract frozen · acceptance evidence
+Handler Qualification Gate：real producer relationship · explicit authorization semantics ·
+  tenant/space semantics · idempotency proof · failure semantics · acceptance coverage
+  （placeholder / TODO / mock-only / test-only / unregistered / unused helper 均不计入）
+本决策不授权 Worker Activation；即使完成 Event Design 也不得自动启动 Company Worker
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 EVENT DECISION（OPTION B · EVENT DESIGN / QUALIFICATION ONLY）· 附录 AH（append-only）· D-P20E-01 = DESIGN/QUALIFICATION AUTHORIZED（Production Producer NOT YET AUTHORIZED）· 02 = DESIGN/QUALIFICATION AUTHORIZED（Handler NOT YET AUTHORIZED）· 03 Allowlist = EMPTY · 04 = 7 候选进入 Design Scope · 05 actor = 真实认证主体 · 06 tenant 显式 · 07 space（Employee NULL / Assignment 显式）· 08 canonical 授权 + 消费侧重新授权 · 09 逐类型幂等证明前置 · 10 无自动级联 · 11 payload 白名单 · 12 P15 冻结重试语义 · 13 Activation = NOT AUTHORIZED · Producer 0 / Handler 0 / Worker 0 · 附录 A–AG 零改写 · 未实现 / 未 commit；2026-10-04）**
+
+---
+
+# 附录 AI — P20 EVENT CONTRACT FREEZE — BATCH 1 EMPLOYEE（2026-10-04 · canonical registration）
+
+> **append-only**：不改写附录 A–AH；不删除；不重排。本附录冻结 **Batch 1（Employee）事件契约**
+> （D-P20E-DES-01…13）。**契约冻结 ≠ 生产授权**：本附录不授权 Producer / Handler 实现、
+> Allowlist 写入、Worker 激活、事件生产或任何 schema 变更。
+
+## AI.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（EVENT CONTRACT FREEZE ONLY · NO IMPLEMENTATION / NO ACTIVATION）
+依据      = P20_EVENT_CONTRACT_FREEZE_BATCH1_PREP_REPORT.md（Layer A 推荐契约 + Layer B 13 项裁定项）
+            + 附录 AH（OPTION B · Event Design / Qualification AUTHORIZED）+ 附录 AB（P19 Governance）
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b · staged 0）+ 0019_p20_company + 0020_p20_company_authorization
+授权范围  = ① Batch 1 Event Contract Freeze ② Qualification implementation planning
+明确不授权 = Production Producer/Handler 实现 · Allowlist 激活 · Worker 激活 · 事件生产 ·
+             Migration · 新 Event/Outbox/Dedup/Event-Identity 表 · 新 permission · 新 authorization engine
+```
+
+## AI.2 冻结决定（D-P20E-DES-01…13）
+
+```text
+D-P20E-DES-01 Event Naming = FROZEN
+  精确名称（逐字保持）：employee.created · employee.updated · employee.suspended · employee.terminated
+  互斥规则：状态专用事件与 generic `.updated` **互斥** —— 同一次 suspend 不得再产生 employee.updated；
+            同一次 terminate 不得再产生 employee.updated
+  语义：事件表达**已成功完成的业务变化**；不表达失败尝试
+
+D-P20E-DES-02 Schema Version = FROZEN
+  全部为 schema_version = 1（依据既有 EVENT_SCHEMA_VERSION = 1）
+  语义：Event Contract Schema Version ≠ Alembic revision / API version / UAP release version
+  未来 Breaking Contract Change ⇒ 新 schema version + 相应 Human Decision / Contract Freeze
+
+D-P20E-DES-03 Payload Whitelist = FROZEN（最小必要业务 Payload）
+  共同字段：resource_type（= company_employee）· resource_id（= employee identity）
+  employee.created    ：resource_type · resource_id · employee_no · display_name · status · user_id(optional)
+  employee.updated    ：resource_type · resource_id · changed_fields[]（仅描述实际发生的已授权字段变化）
+                        + display_name(optional) · title(optional)
+  employee.suspended  ：resource_type · resource_id · from_status · to_status（反映实际完成 active→suspended）
+  employee.terminated ：resource_type · resource_id · from_status · to_status · terminated_at
+  通用禁止（永久）：password · token · bearer credential · API key · secret 明文 · secret_ref 值 ·
+    DSN · connection string · SQL · stack trace · internal exception · database connection information ·
+    内部安全实现细节
+  禁止：整行 dump；禁止以"以后可能有用"为由扩展 payload
+
+D-P20E-DES-04 Resource Identity = FROZEN
+  **不修改现有 envelope**：不新增 events.resource_type / events.resource_id
+  Resource Identity 统一放入 payload：payload.resource_type='company_employee' ·
+    payload.resource_id = 实际 Employee business resource identity
+  用途：为 Consumer 重新进入既有 Resource / Authorization Resolution 提供输入；**不是授权凭证**
+  继续保持：missing resource projection = DENY · no self-healing · no auto-provision；
+    本契约不增加任何新的 Resource Provisioning 行为
+
+D-P20E-DES-05 Actor Scope = FROZEN
+  Batch 1 V1 Producer Actor Scope = **USER only**（actor_type='USER' · actor_id = real authenticated
+    originating user，必须来自真实业务请求的 authenticated actor）
+  禁止：worker · DB principal · platform_admin fallback · bootstrap · migrator ·
+    service identity pretending as USER
+  Role / Agent = OUT OF BATCH 1 SCOPE（**不是永久禁止**；未来需要 ⇒ 新的 Human Decision）
+  不得通过 Batch 1 实现偷改 Company 现有 subject_type="USER" 逻辑
+
+D-P20E-DES-06 Subject Identity = FROZEN（OPTION C）
+  subject_type = NULL · subject_id = NULL
+  理由：① 当前不存在已冻结的 Event-level Subject Type Vocabulary；② 现有 USER/ROLE/AGENT 属授权域语义，
+    不得未经裁定扩展为 Company Event Subject Vocabulary；③ Batch 1 消费资格化不要求新增
+    COMPANY_EMPLOYEE 之类 Subject Type；④ 不为尚未证明必要的 subject 语义扩展平台模型
+  业务对象由 resource_type/resource_id 表达；未来若某个 Consumer 确需 Event-level Subject ⇒ 重新 Human Decision
+
+D-P20E-DES-07 Correlation / Causation = FROZEN
+  correlation_id = 复用既有请求 correlation（x-correlation-id）
+  causation_id   = NULL（Batch 1 不冻结 Event → Event causal chain；不得伪造 lineage）
+  未来出现 Event-triggered Event ⇒ 需重新进行相应 Contract Decision
+
+D-P20E-DES-08 Producer Transaction Atomicity = FROZEN
+  未来 Producer 必须保证 Business Mutation + Audit Log + Event Persistence 属于
+    **same logical transaction**：成功全提交 / 失败全回滚
+  禁止两种反模式：business success + event lost；event persisted + business rollback
+  保持：audit != event（两者语义不同，不得互相替代）
+
+D-P20E-DES-09 Consumer Re-Authorization = FROZEN
+  Consumer 必须重新执行 Canonical Authorization；Event 不得作为授权凭证
+  依据：event.actor · event.tenant_id · event.space_id · resource identity · handler-required canonical action
+  Batch 1：actor_type = USER · space_id = NULL
+  禁止替换为 platform_admin / worker / system principal / bootstrap / migrator
+  原 USER 已无权 ⇒ authorization = DENY（不得 elevation）；Resource Projection 不存在 ⇒
+    resource resolution = DENY（不得 self-healing）；Consumer 授权失败不得借 Event 绕过
+
+D-P20E-DES-10 Idempotency = FROZEN
+  逐类型、独立 Idempotency Proof 为 Activation 前置；词表保持
+    {naturally_idempotent, transactional_key, schema_guaranteed}；event_id = event identity
+  不创建 dedup table / event receipt table / event identity table
+  **不得仅因业务数据库存在唯一键就声称 Handler 已具备 Event-level Idempotency**；
+    必须在未来 Handler Qualification 证明"same event delivered twice"不产生错误重复业务副作用
+  当前：Qualification = NOT YET COMPLETE · Activation = NOT AUTHORIZED
+
+D-P20E-DES-11 Lifecycle = FROZEN
+  employee.created    ：仅 Employee 成功创建后；不发失败尝试事件
+  employee.updated    ：仅允许的 mutable business state 成功变化；不得用于表示 suspended / terminated
+  employee.suspended  ：成功完成 active → suspended
+  employee.terminated ：成功完成 active/suspended → terminated（允许的前置状态与现有 Company Service 实现一致）
+  **No Cascade**：不新增 assignment cascade · space cascade · automatic assignment ending ·
+    automatic secondary event generation（员工终止不因本契约自动产生 Assignment Event）
+
+D-P20E-DES-12 Ordering = FROZEN
+  **NO GLOBAL ORDERING GUARANTEE**：Consumer 不得依赖 created → updated → suspended → terminated 严格有序；
+  现有 ORDER BY occurred_at + concurrency + SKIP LOCKED + retry 不足以构成全局顺序保证
+  Handler 必须设计为不依赖全局 Event Ordering；未来若业务必须依赖严格顺序 ⇒ 重新提交 Human Decision
+
+D-P20E-DES-13 Batch Scope = FROZEN
+  Batch 1 = employee.created · employee.updated · employee.suspended · employee.terminated
+  Batch 2 = assignment.created · assignment.updated · assignment.ended（暂缓）——
+    保持 Candidate / Design Complete / Contract Not Frozen / Production Not Authorized
+  理由：Employee 事件不涉及直接 Space 语义；Assignment 涉及 Space、三向 Tenant Consistency 与
+    `.updated` / `.ended` 互斥边界，应在 Batch 1 模板成熟后单独 Freeze
+```
+
+## AI.3 冻结契约摘要
+
+| Event | Version | Actor | Tenant | Space | Resource | Subject | Ordering |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| employee.created | 1 | USER | employee.tenant_id | NULL | payload | NULL | none |
+| employee.updated | 1 | USER | employee.tenant_id | NULL | payload | NULL | none |
+| employee.suspended | 1 | USER | employee.tenant_id | NULL | payload | NULL | none |
+| employee.terminated | 1 | USER | employee.tenant_id | NULL | payload | NULL | none |
+
+```text
+Resource：payload.resource_type = company_employee · payload.resource_id = employee resource identity
+```
+
+## AI.4 冻结安全与基础设施规则（不变项）
+
+```text
+安全：real authenticated actor · tenant explicit · space = NULL · consumer re-authorization ·
+  resource projection failure = DENY · no privilege elevation · no worker-as-user ·
+  no platform_admin fallback · no secret leakage · no SQL leakage · no stack leakage
+基础设施（沿用 · 本批不修改）：event_id = event identity · schema_version = 1 ·
+  MAX_ATTEMPTS = 10 · backoff 5/10/20/40/80/160/320/600/600（无 jitter）· lease = 120s ·
+  heartbeat = 40s · batch ≤ 10 · worker concurrency = 4
+```
+
+## AI.5 显式非决策（本 Freeze 不冻结、不授权）
+
+```text
+Producer implementation · Handler implementation · Handler registry registration ·
+production allowlist entry · Worker activation · 0021 · event migration · envelope schema change ·
+dedup mechanism · new subject vocabulary · new permission · new resource type ·
+new authorization engine · global ordering · Event → Event causation
+⇒ 全部保持 NOT AUTHORIZED
+```
+
+## AI.6 Freeze 后的 Qualification Gate
+
+```text
+Producer Qualification（逐项证明）：real production path · real USER actor · canonical authorization ·
+  tenant semantics · space = NULL · resource identity · business + audit + event atomicity ·
+  payload whitelist · event identity
+Handler Qualification（逐项证明）：real registered handler · same frozen event_type · schema_version = 1 ·
+  consumer re-authorization · tenant validation · resource resolution · idempotency proof ·
+  lifecycle proof · failure proof · P15 retry compatibility
+任何一项缺失 ⇒ QUALIFICATION = BLOCKED
+```
+
+## AI.7 激活边界
+
+```text
+即使未来完成 Contract Frozen + Producer Qualified + Handler Qualified + Idempotency Proven +
+  Authorization Proven + Tenant/Space Proven + Acceptance Passed，
+  **仍不能**因本次 Contract Freeze 自动激活。
+Production Activation = NOT AUTHORIZED · Allowlist = EMPTY（须经独立 Activation Gate / Human Authorization）
+
+下一阶段（需独立授权）：P20 EVENT PRODUCER / HANDLER QUALIFICATION PREP（先建立 Implementation /
+  Acceptance Gate）。在获得新的明确授权之前：NO PRODUCTION EVENT · NO ALLOWLIST ENTRY ·
+  NO WORKER ACTIVATION · NO 0021。
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 EVENT CONTRACT FREEZE — BATCH 1 EMPLOYEE · 附录 AI（append-only）· D-P20E-DES-01…13 = FROZEN · 4/4 Employee 事件契约冻结（naming · schema_version=1 · payload 白名单 · resource identity 入 payload · actor=USER · subject=NULL · correlation 复用/causation NULL · 同事务原子 · consumer 重新授权 · 逐类型幂等前置 · 无级联 · 无全局顺序保证 · Batch 2 暂缓）· Producer 0 / Qualified Handler 0 / Allowlist EMPTY / Production Event NOT AUTHORIZED / Worker NOT AUTHORIZED / Migration NOT AUTHORIZED · 附录 A–AH 零改写 · 未实现 / 未 commit；2026-10-04）**
+
+---
+
+# 附录 AJ — P20 EVENT PRODUCER / HANDLER QUALIFICATION DECISION（HD-Q-01…05 · 2026-10-04 · canonical registration）
+
+> **append-only**：不改写附录 A–AI；不删除；不重排。本附录冻结 Producer / Handler 资格化决策
+> （HD-Q-01…05）。**资格化实现授权 ≠ 生产授权**：本附录不授权生产企业事件、allowlist 激活、
+> Worker 激活、业务 Handler 实现或任何 schema 变更。
+
+## AJ.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（QUALIFICATION DECISION + QUALIFICATION IMPLEMENTATION AUTHORIZATION）
+依据      = P20_EVENT_PRODUCER_HANDLER_QUALIFICATION_PREP_REPORT.md（F-P20E-QUAL-001…003 与 4 项 HD-Q）
+            + 附录 AB / AH / AI
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b · staged 0）+ 0019 + 0020
+范围      = Batch 1 Employee Events（employee.created / .updated / .suspended / .terminated）
+```
+
+## AJ.2 冻结决定（HD-Q-01…05）
+
+```text
+HD-Q-01 Handler Binding Mechanism = FROZEN
+  采用**最小增量绑定**：EventHandlerSpec 增加显式 handler callable binding
+    （event_type · schema/version metadata · handler callable）
+  原则：explicit binding · no implicit discovery · no reflection-based arbitrary handler loading ·
+        no database-driven handler execution
+  禁止：handler database table · handler persistence model · dynamic code loading ·
+        plugin execution mechanism · new authorization engine
+  说明：现有 Worker 的 `getattr(spec, "handler", None)` 视为现有实现暴露出的**最小绑定接口方向**，
+        不得借此扩大架构
+
+HD-Q-02 Payload Validation = FROZEN
+  校验落在 **Handler Boundary**：event claimed → frozen envelope validation →
+    handler payload validation → authorization / business safety checks → business side effect
+  Payload Schema 依附录 AI（schema_version=1 · 显式白名单 · 最小必要字段 · 禁止敏感字段）
+  非法 payload ⇒ 使用既有 P15 终态 `malformed_payload`；**禁止在 payload 校验前产生业务副作用**
+  不得为 payload validation 新建中央 Schema Engine
+
+HD-Q-03 Real Downstream Consumer Requirement = FROZEN
+  必须存在**真实 Production Business Consumer Use Case** 才允许创建 Qualified Production Handler
+  禁止：no-op handler · log-only handler · mock-only production handler · test-only handler ·
+        fake subscription · synthetic business side effect
+  当前：Qualified Handler = 0（保持）· Handler Qualification = BLOCKED UNTIL REAL DOWNSTREAM USE CASE EXISTS
+  未来须先明确：event → real downstream business purpose → handler → side effect → authorization → idempotency
+  无真实 Consumer Use Case ⇒ Production Handler = NOT AUTHORIZED · Activation = NOT AUTHORIZED
+
+HD-Q-04 Event Partition Operations = FROZEN
+  继续采用 P10 手工分区维护；**不引入自动 partition provisioning**
+  禁止：partition scheduler · partition worker · automatic DDL executor · event-triggered partition creation
+  Producer / Activation Gate 前必须确认目标 occurred_at 月份存在合法分区（当前 2026-10 可用；
+    未来月份缺失 = operational readiness requirement，不得在 Runtime Event Producer 中自动修复）
+
+HD-Q-05 Implementation Authorization = FROZEN
+  AUTHORIZED：Producer implementation · Handler binding infrastructure · Payload validation
+    implementation · Qualification test infrastructure · Producer/Consumer security tests ·
+    Transaction atomicity tests · Idempotency qualification tests（限 Batch 1 四事件）
+  NOT AUTHORIZED：Production Handler business implementation · Handler registration into
+    production allowlist · Production Allowlist activation · Production Event emission ·
+    Worker activation · Production Worker deployment · New migration · New Event/Outbox/Dedup/
+    Event-Identity table · New permission · New authorization engine · New subject vocabulary
+  **Producer implementation authorization ≠ Production Event activation authorization**：
+    实现后的代码必须能在 `Production Allowlist = EMPTY` 状态下完成 Qualification Tests，
+    且不得产生真实生产事件
+```
+
+## AJ.3 实现边界（本次授权内的约束）
+
+```text
+Producer：可实现 business mutation + audit + event persistence 的**同一逻辑事务原子提交**；
+  但 Activation 前 Production Allowlist 保持 EMPTY ⇒ 必须设计为 implementation present /
+  activation disabled，不得形成真实 production event emission
+Handler：当前禁止实现 Company Business Handler；仅允许 Handler binding infrastructure ·
+  payload validation infrastructure · qualification harness · controlled test handler；
+  **测试 Handler 必须明确标记 TEST ONLY / NON-PRODUCTION**，
+  不得注册到 production_allowlist()，不得被 Worker 当作 Production Handler
+身份边界（沿用 AH/AI）：Worker != Actor · DB Principal != Actor；handler binding 不得改变该边界
+Resource Identity：payload.resource_type=company_employee · payload.resource_id=employee identity；
+  Consumer 以 tenant + resource_type → collection resource → canonical AuthorizationService；
+  禁止 self-heal / auto-provision / 以 payload 作为授权凭证
+Subject Identity：保持 subject_type=NULL · subject_id=NULL；Handler Binding 不得引入
+  COMPANY_EMPLOYEE 等新 Event Subject Vocabulary
+Idempotency：词表 {naturally_idempotent, transactional_key, schema_guaranteed}；逐事件单独证明；
+  不得以 UUID uniqueness 作为幂等证明；不得创建 Dedup / Receipt / Identity Table
+Failure/Retry：沿用 P15 冻结值（MAX_ATTEMPTS 10 · 退避 5/10/20/40/80/160/320/600/600 无 jitter ·
+  lease 120s · heartbeat 40s · batch ≤ 10 · concurrency 4）；Handler 不得自行实现 retry/sleep/
+  backoff/attempt counter
+Payload 校验安全（至少）：required field · type · schema_version · resource_type · resource_id ·
+  allowed fields · forbidden fields（secret/token/bearer/API key/credential/DSN/connection string/
+  SQL/stack trace/internal exception/安全实现细节）；malformed ⇒ business side effect = 0 且进入
+  malformed_payload 终态
+事务验收边界：Success = Business/Audit/Event 全部 committed；Rollback = 三者全部 rollback；
+  Event 失败 ⇒ Business/Audit rollback；Audit 失败 ⇒ Business/Event rollback；不得 partial commit
+Schema 边界：**NO 0021**；不允许 alter events / 增加 resource_type·resource_id 列 / 增加 subject
+  vocabulary / dedup 表 / handler 表 / outbox 表；Resource Identity 继续置于 payload
+范围边界：Batch 2（assignment.created/.updated/.ended）**不受本决策授权**
+```
+
+## AJ.4 最终状态（本决策后）
+
+```text
+Contract Freeze（Batch 1）      = FROZEN
+Qualification Infrastructure   = IMPLEMENTATION AUTHORIZED
+Producer                       = IMPLEMENTATION AUTHORIZED · QUALIFIED = NO
+Handler Binding                = IMPLEMENTATION AUTHORIZED
+Business Handler               = NOT AUTHORIZED（无真实下游用例）
+Qualified Handler              = 0
+Production Allowlist           = EMPTY
+Production Event               = NOT AUTHORIZED
+Worker                         = NOT AUTHORIZED
+Migration                      = NOT AUTHORIZED
+Schema Change                  = NOT AUTHORIZED
+```
+
+## AJ.5 下一阶段与硬边界
+
+```text
+允许：build the qualification mechanism · implement the producer · prove the producer
+禁止：invent a downstream consumer · implement a fake production handler ·
+      register a production handler · activate the allowlist · emit production events ·
+      activate the worker · create 0021
+下一阶段 = P20 EVENT PRODUCER / HANDLER QUALIFICATION IMPLEMENTATION
+           （实施必须严格限制在本 Decision 授权边界内）
+完成 Producer / Qualification Infrastructure Implementation 后：
+  STOP → Qualification Acceptance Gate → Human review → Production Handler decision → Activation Gate
+不得跳过中间 Gate。
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 EVENT PRODUCER / HANDLER QUALIFICATION DECISION · 附录 AJ（append-only）· HD-Q-01 Handler 显式 callable binding = FROZEN · HD-Q-02 payload 校验落于 Handler Boundary = FROZEN · HD-Q-03 需真实下游用例（无合成 Handler）= FROZEN · HD-Q-04 P10 手工分区维护 = FROZEN · HD-Q-05 资格化实现授权（Producer / Handler binding infra / payload validation / qualification tests）但 Production Handler·Allowlist·Production Event·Worker·Migration 一律 NOT AUTHORIZED · Batch 1 四事件 · 无 0021 · 附录 A–AI 零改写 · 未实现 / 未 commit；2026-10-04）**
+
+---
+
+# 附录 AK — P20 EVENT QUALIFICATION INFRASTRUCTURE ACCEPTANCE（Human Decision — Option A · 2026-10-04 · canonical registration）
+
+> **append-only**：不改写附录 A–AJ；不删除；不重排。本附录登记 Human Decision **Option A**：
+> 正式接受 P20 Batch 1 Event Producer / Qualification Infrastructure。
+> **接受 ≠ 生产激活**：本附录不授权 Production Event、Production Handler、Allowlist Entry、Worker 或 Activation。
+
+## AK.1 登记性质
+
+```text
+性质      = HUMAN DECISION（ACCEPTANCE · OPTION A · NO ACTIVATION AUTHORIZATION）
+依据      = P20_EVENT_PRODUCER_HANDLER_QUALIFICATION_ACCEPTANCE_REPORT.md
+            （P20 EVENT PRODUCER / HANDLER QUALIFICATION ACCEPTANCE = PASS）
+            + 附录 AH / AI / AJ
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b · staged 0）+ 0019 + 0020
+接受范围  = Producer Implementation · Handler Binding Infrastructure · Payload Validation ·
+            Qualification Test Infrastructure
+```
+
+## AK.2 Batch 范围
+
+```text
+Contract-Frozen 且本次被接受：employee.created · employee.updated · employee.suspended · employee.terminated
+Batch 2（assignment.created / .updated / .ended）= 保持 Candidate · Design Complete ·
+  Contract Not Frozen · Production Not Authorized（不受本决策影响）
+```
+
+## AK.3 接受的证据（逐项）
+
+```text
+Business + Audit + Event transaction atomicity · Actor end-to-end propagation ·
+Consumer USER reconstruction without HTTP · Consumer canonical re-authorization ·
+Worker ≠ Actor · DB Principal ≠ Actor · Resource projection resolution ·
+Missing projection = DENY · Tenant mismatch = DENY · Payload validation ·
+Malformed payload = zero business side effect · Event exclusivity · Event identity separation ·
+P15 retry/lease compatibility · Production Event Silence · Production Allowlist EMPTY ·
+No Worker activation · No migration · No schema change
+P15 skipped 测试处理：13 passed / 0 skipped（一次性隔离 runtime 库实跑）·
+  12/12 previously skipped cases independently covered
+⇒ skipped 不再视为未覆盖证据
+```
+
+## AK.4 接受的实现状态
+
+```text
+Producer              = IMPLEMENTED · ACCEPTED · QUALIFIED FOR FUTURE ACTIVATION REVIEW · PRODUCTION ACTIVE = NO
+Handler Binding       = ACCEPTED（EventHandlerSpec 显式 callable · trusted code only · no dynamic loading ·
+                        no payload-selected handler · no DB-driven execution）
+Payload Validation    = ACCEPTED
+Qualification Tests   = ACCEPTED
+特别确认：当前 Producer **未接线**到正常 Company Production Path
+  ⇒ Company Production Operation → no automatic Event emission（继续保持）
+production handler registrations = 0（继续保持）
+```
+
+## AK.5 Business Handler 边界（HD-Q-03 延续）
+
+```text
+real downstream consumer use case = NONE · Qualified Handler = 0
+⇒ Business Handler Implementation = NOT AUTHORIZED · Production Handler Registration = NOT AUTHORIZED
+不得为了"完成 Event 系统"而人为制造 Handler（fake consumer / log-only / no-op / synthetic side effect 一律禁止）
+```
+
+## AK.6 Allowlist / Production Event / Worker
+
+```text
+Production Event Allowlist = EMPTY
+  employee.created / .updated / .suspended / .terminated = NOT ALLOWLISTED（本决策不授权任何 Allowlist Entry）
+Production Event = NOT AUTHORIZED（Producer Accepted ≠ Production Event Authorized）
+Worker = NOT AUTHORIZED · Worker Activation = NOT AUTHORIZED
+  （Worker 仍只是 P15/P16 既有基础设施能力，不因本决策获得 Company Event Activation 权限）
+```
+
+## AK.7 Schema / Migration
+
+```text
+No 0021 · No new event table · No outbox table · No dedup table · No event identity table ·
+No envelope alteration · 0019 = unchanged · 0020 = unchanged
+```
+
+## AK.8 安全边界（接受）与既有观察
+
+```text
+接受并保持：real authenticated USER actor · consumer re-authorization · worker ≠ actor ·
+  DB principal ≠ actor · tenant re-resolution · resource projection required ·
+  missing projection = DENY · no platform_admin fallback · no worker elevation ·
+  no self-healing · no payload authorization bypass
+O-P20E-IMPL-001 保持为 **Non-blocking Observation**（本决策不修复）：
+  PLATFORM-scope authorization 本身不承担 Company tenant isolation；
+  Consumer 必须通过 Event Tenant + Business Resource 的重新解析完成租户约束。
+```
+
+## AK.9 运维分区边界
+
+```text
+保持 P10 manual partition maintenance；不授权 automatic partition creation / scheduler /
+  partition worker / runtime DDL；未来 Production Activation Gate 必须确认目标月份分区存在。
+```
+
+## AK.10 Qualification 状态（冻结表述）
+
+```text
+Producer:            ACCEPTED · NOT PRODUCTION ACTIVE
+Handler Binding:     ACCEPTED · NO PRODUCTION REGISTRATION
+Payload Validation:  ACCEPTED
+Business Handler:    NONE · NOT AUTHORIZED
+Qualified Handler:   0
+Production Allowlist: EMPTY
+Production Event:    NOT AUTHORIZED
+Worker:              NOT AUTHORIZED
+```
+
+## AK.11 未来路径（Handler 与 Activation 分离）
+
+```text
+Handler：仅当出现**真实产品需求**（actual downstream business use case）后，方可进入
+  Handler Scope Decision → Handler Contract → Handler Implementation → Handler Qualification → Acceptance
+Activation：任何 Batch 1 Event 要进入 Production Allowlist，必须另行完成
+  real Producer · real Handler · handler qualification · idempotency proof · authorization proof ·
+  tenant proof · resource proof · lifecycle proof · payload proof · acceptance · Activation Gate，
+  并且需要**独立的 Production Activation Authorization**
+本决策不包含 Activation Authorization。
+```
+
+## AK.12 Decision Statement
+
+```text
+OPTION A = ACCEPTED
+即：UAP 正式接受 P20 Batch 1 Event Producer / Qualification Infrastructure 的实现与 Acceptance 结果。
+但：Production Event = OFF · Allowlist = EMPTY · Handler = 0 · Worker = OFF
+```
+
+## AK.13 Git 状态与登记方式
+
+```text
+Commit = NO · Tag = NO · Push = NO
+本 Human Decision 采用 PDL append-only 登记；不得改写 Appendix A–AI（本附录亦不改写 AJ）。
+```
+
+## AK.14 下一阶段
+
+```text
+下一阶段不是立即 Activation。实际入口 = **REAL DOWNSTREAM CONSUMER USE CASE**；
+  仅当真实业务需求出现后，才提交 P20 EVENT HANDLER SCOPE DECISION。
+否则：Batch 1 Event Infrastructure remains accepted but inactive。
+不得为了"继续跑流程"而制造假的 Handler。
+```
+
+## AK.15 Final State（冻结）
+
+```text
+P20 EVENT QUALIFICATION INFRASTRUCTURE = ACCEPTED
+Producer            = ACCEPTED
+Handler Binding     = ACCEPTED
+Payload Validation  = ACCEPTED
+Business Handler    = 0
+Qualified Handler   = 0
+Production Allowlist = EMPTY
+Production Event    = NOT AUTHORIZED
+Worker              = NOT AUTHORIZED
+Migration           = NOT AUTHORIZED
+Schema              = UNCHANGED
+HARD STOP = ACTIVE
+```
+
+**END OF PLATFORM_DECISION_LOG（P20 EVENT QUALIFICATION INFRASTRUCTURE ACCEPTANCE · 附录 AK（append-only）· OPTION A = ACCEPTED（Producer / Handler Binding / Payload Validation / Qualification Test Infrastructure 全部 ACCEPTED）· Producer NOT PRODUCTION ACTIVE（未接线）· Production Handler / Allowlist Entry / Production Event / Worker / Activation 一律 NOT AUTHORIZED · No 0021 · Schema UNCHANGED · O-P20E-IMPL-001 保持 Non-blocking · 下一入口 = REAL DOWNSTREAM CONSUMER USE CASE · 附录 A–AJ 零改写 · 未 commit；2026-10-04）**
+
+---
+
+# 附录 AL — P21 FRONTEND ARCHITECTURE DECISION（P21-H01…H11 · 2026-10-04 · canonical registration）
+
+> **append-only**：不改写附录 A–AK；不删除；不重排。本附录冻结 P21 前端架构决策
+> （P21-H01…H11）。**架构冻结 ≠ 实现**：本附录不安装任何依赖、不写任何前端源码、
+> 不改 lockfile、不改后端。
+
+## AL.1 登记性质
+
+```text
+性质      = HUMAN DECISION FREEZE（FRONTEND ARCHITECTURE = APPROVED · NO IMPLEMENTATION）
+依据      = P21_FRONTEND_DISCOVERY_PREP_REPORT.md（45 节只读发现）+ 已 Accepted 的
+            P17 Identity/Tenant/Space · P18 Control Plane · P20 Company Domain/API/Acceptance ·
+            P20 Event Contract / Qualification Infrastructure
+基线      = UAP-V0.1.17-P18-CONTROL-PLANE（08a0485b · staged 0）· 现有 apps/frontend STEP-0 skeleton
+授权范围  = 后续可进入 P21 FRONTEND FOUNDATION IMPLEMENTATION（阶段化，见 AL.11）
+```
+
+## AL.2 冻结决定（P21-H01…H11）
+
+```text
+P21-H01 Frontend framework = **KEEP React + Vite + TypeScript**（保留现有 STEP-0 skeleton 技术栈）
+  不切换 Next.js / Nuxt / Vue / Svelte / Astro；既有 package 版本按仓库现状保留，
+  后续实施**不得因架构冻结自动升级版本**
+P21-H02 Frontend root      = **apps/frontend/**（ALREADY DETERMINED / FROZEN）
+  不得另建 frontend/ · web/ · client/ · ui/ 作为第二套正式前端
+P21-H03 Tenant URL         = **OPTION A · tenant 进入前端 URL**
+  /tenants/:tenant_id/company[/employees[/:employee_id]][/assignments[/:assignment_id]]
+  理由：与后端 `/company/tenants/{tenant_id}/...` 契约清晰对应 · Deep Link/Bookmark 租户语义明确 ·
+        租户切换不产生隐藏上下文 · UI Route 与 API Path 的 tenant 可直接核验
+  边界：URL 中的 tenant_id **只是上下文，不是授权凭证**；后端 Authorization 仍是最终安全边界
+P21-H04 Auth integration   = **复用现有身份/会话体系**
+  使用 identity/authentication endpoints · sessions · sessions/refresh · sessions/logout · GET /me
+  默认安全：access token memory-first · refresh 走既有后端机制 · **no localStorage token persistence** ·
+            no custom password storage；401 ⇒ 先尝试既有 refresh / session recovery，失败则 logout /
+            auth state reset
+  禁止：第二套前端认证 · 前端伪造用户身份 · employee login
+P21-H05 API client         = **UAP 自有轻量 Typed API Client（以 native fetch 为基础）**
+  不为此引入大型 HTTP 依赖；client 统一负责 base URL · authentication transport · request headers ·
+  `x-correlation-id` · typed response · error normalization · 401 handling · timeout/abort
+  Company Feature 不得在各页面散落 `fetch(...)`；统一链路 UI → UAP API Client → Company API
+P21-H06 State              = **不引入 Redux/Zustand 等全局状态系统作为 Foundation 必需依赖**
+  分层：Global Platform State（Auth · Current Tenant）· Feature State（Company Employees / Assignments）·
+        Local UI State（Forms · Dialogs · Pending actions · Filters）
+  实现建议：React Context + feature hooks + local component state；URL 状态（tenant_id · route ·
+  deep-linkable filters）优先来自 URL；服务器数据不得复制到多个全局 store
+P21-H07 Styling            = **UAP 自有 Design Token + CSS Modules / scoped styling**
+  第一阶段**不引入**大型组件框架（No Material UI / Ant Design / Chakra / Bootstrap / Tailwind dependency）
+  最小 Platform Design Tokens：color · surface · text · muted · border · accent · success · warning ·
+  danger · spacing · radius · typography · elevation · motion · breakpoints
+  少量稳定 Primitive：Button · Input · Select · Dialog · Drawer · Card · Badge · Table · PageHeader ·
+  EmptyState · LoadingState · ErrorState（Company 页面只能消费这些共享 Primitive）
+P21-H08 Routing            = **React Router 体系**；路由分 Public/Auth · Platform · Company 三层
+  Company 路由同 P21-H03；Support：404 · 403 · 401 recovery · loading boundary
+  不得让每个 Domain 自建 Router
+P21-H09 Permission-aware UI = **Backend-authoritative Permission UX**
+  当前无 My Permissions API ⇒ **不创建前端自己的权限计算系统**
+  链路：Frontend knows capability intent → Backend remains authoritative → **403 is final denial**
+  UI 可做 context-aware hiding / disable / action availability UX，但不得自行推导完整 ACL
+  `/me` 的 scope/context 可辅助 UX，但 **`/me` scope ≠ complete permission set**
+  禁止：frontend ACL engine · role-permission replica · permission inference table
+  （未来平台若提供正式 Permission API，再接入，不影响本架构）
+P21-H10 Testing            = **三层：Unit/Logic · Component · E2E**
+  方向：Vitest + React Testing Library + Playwright（critical E2E）
+  重点：Foundation（routing · auth state · tenant context · API client · error normalization ·
+        design primitives）· Company（employee/assignment 各动作）· Security/UX（401/403/409/422/503 ·
+        tenant mismatch · duplicate action prevention）
+  前端测试**不得**作为 Backend Authorization 的替代品
+P21-H11 Deployment         = **Production Static SPA + Reverse Proxy / Same-Origin API**
+  Browser → Reverse Proxy（Frontend static assets + /api/* → FastAPI）⇒ 生产前后端**同源**
+  优点：无多余 CORS 依赖 · 浏览器安全边界简单 · API 配置简单 · 无浏览器可见后端密钥
+  开发环境继续：Vite :5173 → proxy → FastAPI :8000；`VITE_API_TARGET` 仅作开发配置且不得含秘密；
+  生产不得把 `VITE_API_TARGET` 当作公开 API Secret 或私密配置
+```
+
+## AL.3 冻结架构总览
+
+```text
+Framework: React + Vite + TypeScript        Root: apps/frontend/
+Routing:   React Router                     Tenant URL: /tenants/:tenant_id/company/...
+Auth:      existing identity/session system API: native fetch + UAP API client
+State:     Context + feature hooks + local  Styling: UAP Design Tokens + CSS Modules
+Permission UX: Backend-authoritative（no frontend ACL engine）
+Testing:   Vitest + RTL + Playwright        Deployment: Static SPA + reverse proxy（same-origin /api）
+Event UI:  OUT OF SCOPE
+```
+
+## AL.4 平台前端目录与模块边界
+
+```text
+apps/frontend/src/
+  app/routing/ · app/shell/
+  platform/auth/ · platform/tenant/ · platform/api/ · platform/permissions/ ·
+  platform/feedback/ · platform/design/
+  components/
+  modules/company/
+（实际目录可最小调整，但边界必须保持 Platform UI → Domain UI，不得形成 Company-specific platform clone）
+
+Company UI 只负责：Company pages · components · hooks · API adapters · DTO mapping · UX capability mapping
+Company 不得复制：auth · tenant model · global API client · global error system · design system · global routing
+```
+
+## AL.5 Company V1 信息架构与 UI↔API 映射
+
+```text
+IA：Company ├── Overview ├── Employees └── Employee Detail ├── Assignments └── Assignment Detail
+Employee actions = Create · Edit · Suspend · Terminate
+Assignment actions = Create · Edit · End
+V1 **不呈现** Delete / Admin（对应 use case 未授权/未实现）
+
+严格使用已 Accepted 的 11 条 API（不得为 UI convenience 新增 Backend Endpoint）：
+  POST/GET   /company/tenants/{tenant_id}/employees
+  GET/PATCH  /company/tenants/{tenant_id}/employees/{employee_id}
+  POST       /company/tenants/{tenant_id}/employees/{employee_id}/suspend|terminate
+  POST/GET   /company/tenants/{tenant_id}/assignments
+  GET/PATCH  /company/tenants/{tenant_id}/assignments/{assignment_id}
+  POST       /company/tenants/{tenant_id}/assignments/{assignment_id}/end
+```
+
+## AL.6 Tenant / Space 安全
+
+```text
+Tenant 单上下文：URL tenant_id → Current Tenant Context → API tenant_id path
+必须避免 URL=Tenant A / state=Tenant B / request=Tenant C；Tenant switching 必须**整体切换**上下文，
+  而不是只替换 API 参数
+Space：Employee space = NULL（前端不得推断员工所属 space）；
+  Assignment 显式 space，必须从合法后端数据选择（不得硬编码组织树）
+```
+
+## AL.7 错误 UX 与关键动作
+
+```text
+错误统一映射：401 → authentication recovery · 403 → no access · 409 → conflict ·
+  422 → validation / not-found · 503 → service/security boundary problem
+不显示：SQL · 表名 · 约束名 · stack trace · DB 凭证 · 内部异常
+关键动作（Suspend / Terminate / End Assignment）必须：explicit confirmation · pending state ·
+  duplicate-click protection · success feedback · 409 处理 · 403 处理
+（UI confirmation 是 UX，不是 Authorization）
+```
+
+## AL.8 Event UI 边界与密钥边界
+
+```text
+P20 Event Infrastructure UI = **OUT OF SCOPE**：不做 Event Center · Handler Admin · Allowlist UI ·
+  Worker Control · Event Replay Console；Production = OFF · Allowlist = EMPTY 保持不变
+浏览器端禁止包含：OpenAI API key · 数据库凭证 · PostgreSQL DSN · 私有服务凭证 ·
+  JWT signing secret · 后端 secret；前端环境只允许公开客户端配置
+```
+
+## AL.9 Accessibility 与 Responsive
+
+```text
+A11y 基础要求（不延后）：keyboard navigation · visible focus · semantic labels ·
+  form error association · dialog semantics · non-color-only status · responsive layout
+Responsive：必须支持 desktop / tablet / mobile；第一版 Company = Desktop-first 但 mobile-capable；
+  不得只按固定 1440px 设计
+```
+
+## AL.10 No Backend Expansion
+
+```text
+P21 Frontend Implementation 不得因 UI 不便而直接修改 Company API / Company Service /
+  Authorization / P17 / P18 / P20 schema
+若缺必要 API 数据：Frontend Gap → Human Decision / 独立后端变更；不得偷偷扩 API
+```
+
+## AL.11 实施边界与顺序
+
+```text
+本 Decision 后允许进入：**P21 FRONTEND FOUNDATION IMPLEMENTATION**
+  第一阶段只实现：App Shell · Routing · Auth Context · Tenant Context · API Client · Error System ·
+    Design Tokens · Core UI Primitives · Testing Foundation · Development Configuration
+然后才可：P21 COMPANY UI IMPLEMENTATION（**不得在 Foundation 实施中同时塞入 Company 全部功能**）
+顺序：Foundation → **P21 FRONTEND FOUNDATION ACCEPTANCE** → Company UI（单独实施/验收）——
+  不得跳过 Foundation Acceptance（以便未来 Commercial / Entertainment 真正复用平台层）
+Git / Package 边界（本 Decision 本身）：No package installation · No source implementation ·
+  No lockfile · No commit · No tag · No push；正式登记采用 PDL append-only
+```
+
+**END OF PLATFORM_DECISION_LOG（P21 FRONTEND ARCHITECTURE DECISION · 附录 AL（append-only）· P21-H01 = KEEP React+Vite+TypeScript · H02 = apps/frontend/ · H03 = tenant in frontend URL（/tenants/:tenant_id/company/...）· H04 = 复用现有 identity/session（memory-first token · no localStorage）· H05 = native fetch 的 UAP Typed API Client · H06 = Context + feature hooks + local state · H07 = UAP Design Tokens + CSS Modules（无大型组件框架）· H08 = React Router · H09 = Backend-authoritative permission UX（无前端 ACL 引擎）· H10 = Vitest + RTL + Playwright · H11 = Static SPA + reverse proxy（same-origin /api）· Event UI = OUT OF SCOPE · No backend expansion · 下一步 = P21 FRONTEND FOUNDATION IMPLEMENTATION（Foundation → Foundation Acceptance → Company UI）· No package installation / no source / no commit · 附录 A–AK 零改写；2026-10-04）**
+
+---
+
+# 附录 AM — P22 PREP / SCOPE & DESIGN INPUT（2026-10-05 · canonical registration · INPUT PROVIDED / NOT A DECISION FREEZE）
+
+> **append-only**：不改写附录 A–AL；不删除；不重排。本附录登记 `HD-P22-01` 授权的 P22 PREP 产出，
+> 性质为**决策输入**（Scope / Boundary / Open Question），**不是冻结决定**；任何冻结仍须新的 Human Decision。
+
+## AM.1 登记性质
+
+```text
+性质 : PREP INPUT（HD-P22-01 APPROVED · P22 PREP / Scope & Design）
+依据 : P22_PREP_REPORT.md（平台现状审计 · A–E 候选分析 · 优先级排序）
+       P22_SCOPE_CONTRACT.md（IN / OUT / DEFERRED + 六类边界提案）
+       P22_ACCEPTANCE_MATRIX.md（11 类验收矩阵设计）
+基线 : Release Commit 7ff9ebc204716a2c1cd36a927e361a7d27e41df2
+       Tag UAP-V0.1.18-P21-COMPANY-UI（remote main 已同步）
+       production_allowlist() EMPTY · migration head 0020_p20_company_authorization
+状态 : INPUT PROVIDED，非 FROZEN；P22 Implementation NOT AUTHORIZED
+```
+
+## AM.2 审计结论（当前平台真实状态摘要）
+
+```text
+已 Release 且冻结 : P13 seed · P14 runtime · P16 agent runtime · P17 identity/tenant/space ·
+  P18 control plane · P20 Company domain + authorization + API · P21 frontend foundation + Company UI V1
+已接受但未激活 : P15/P20 event infrastructure（allowlist EMPTY · events 表 0 行 · handler 0）
+仅有决策 : P19 event activation governance（激活需真实下游消费方，当前不存在）
+后端已存在但控制台未使用 : devices 4 条（enrolment / revoke / lost）· identity_runtime 11 条 ·
+  control_plane 8 条 · agent_runs 2 条；audit_logs 只写、无读 API
+已知债务与观察 : OBS-1（无设备注册 UX，真实用户无法使用已发布控制台）· OBS-2/3/4 ·
+  OBS-RELEASE-01（lockfile 根版本 0.1.0）· ACC-04/05（覆盖率缺口）· ACC-06+（Drawer / ready 观察）
+P20 保留 : delete · admin 权限（无用例 / 无授予 / 无 API）· 员工↔用户绑定（推迟）· SELF 访问（V1 不支持）
+```
+
+## AM.3 候选方向与优先级（提案）
+
+```text
+RECOMMENDED : 平台身份会话可用性（设备注册 / 会话接入 UX，复用已发布 4 条 devices endpoint）
+RECOMMENDED : 受限的 Company UI V1.1 可用性（租户切换入口 · 冻结过滤能力 · 状态与相关性展示打磨）
+RECOMMENDED : Domain Module Contract v1（仅设计，用于回答平台复用能力问题）
+DEFER       : 第二个真实 Domain 的实现 · Notification · Audit/Activity 视图 · Agent 与 Domain 的动作
+REJECT P22  : Search / Files / Workflow / Task 引擎 · Production Event Activation（保持 EMPTY）
+```
+
+## AM.4 边界提案（六类）
+
+```text
+Data Boundary : 无新表 · 无 migration · 无 DDL/DML/seed；仅通过已发布读取路径访问数据
+Authorization : 后端权威不变；无前端 ACL；设备注册不得授予域权限、不得构成租户旁路；
+                租户 / 空间上下文仍只来自路径
+Runtime       : 不新增进程 / worker / scheduler / queue；控制台只使用已发布 45 条路由
+Frontend      : 允许在既有 React 控制台内新增屏幕 / hooks / 路由（复用已发布 endpoint）；
+                禁止第二套 API client · 第二套 auth 或 tenant store · 域逻辑进入 platform primitive
+Event         : production_allowlist() 全程保持 EMPTY；无 producer / handler / activation
+AI 与 Agent   : 本阶段不引入 Agent 动作；Actor 与 Agent 与 Worker 与 DB principal 不混淆；
+                ToolGate 保持权威
+```
+
+## AM.5 OPEN QUESTIONS（未解决问题，禁止默认假设）
+
+```text
+OQ-1 是否批准平台身份会话可用性作为 P22 核心范围（仅复用已发布 endpoint，无 migration）？
+OQ-2 若批准：设备注册 UX 是平台级入口，还是仅经登录流程进入？
+OQ-3 受限 Company UI V1.1 项是否纳入 P22，还是留给 Company 阶段？
+OQ-4 Domain Module Contract 是否作为 P22 交付物？其第一个消费者域是哪一个？
+OQ-5 是否考虑 audit 读取 API（属后端变更）？活动 / 审计视图是 P22 还是后续阶段？
+OQ-6 员工与用户绑定需要 API 契约变更；是否纳入后续阶段？依据哪条权限决策（D-P20D-05）？
+OQ-7 Notification 是否即将出现真实下游消费方，从而值得满足事件激活全部前置条件？
+OQ-8 在何种条件下允许 Agent 执行 Domain 动作（授权边界 · 可审计性 · 幂等性）？
+```
+
+## AM.6 PREP FINDINGS（本轮新增，非阻塞）
+
+```text
+F-P22-PREP-01 已发布控制台缺少设备注册 UX，真实用户无法端到端使用（后端 4 条 endpoint 已存在，前端使用 0）
+F-P22-PREP-02 平台尚无冻结的 Domain Module Contract，第二 Domain 存在模式分叉风险（建议设计阶段先行）
+F-P22-PREP-03 audit_logs 只写无读，活动 / 审计视图需要新的租户范围读取 API 决策
+F-P22-PREP-04 Notification 仍是最可能的真实事件消费方，但当前无真实用例，P22 保持不激活
+F-P22-PREP-05 Company API 契约无 user 绑定字段，员工与用户绑定需 API 决策
+```
+
+## AM.7 边界与未授权声明
+
+```text
+本附录与三份 PREP 文档均为只读审计与设计产出：
+Source Change 0 · Database Change 0 · Migration NOT AUTHORIZED · API Change NOT AUTHORIZED ·
+Frontend Change NOT AUTHORIZED · Event Activation NOT AUTHORIZED · Commit / Tag / Push NOT AUTHORIZED
+P22 Implementation NOT AUTHORIZED；须先通过 P22 PREP GATE，再由新的 Human Decision 决定是否进入实现。
+```
+
+**END OF PLATFORM_DECISION_LOG（P22 PREP / SCOPE & DESIGN INPUT · 附录 AM（append-only）· 性质 INPUT PROVIDED（非冻结）· 平台审计 · A–E 候选分析 · 优先级排序 · Scope 与 Non-Scope 与 Deferred 提案 · 六类边界提案 · 验收矩阵设计 · OQ-1 至 OQ-8 未决问题 · F-P22-PREP-01 至 05 · No implementation / no source / no DB / no commit · 附录 A–AL 零改写；2026-10-05）**
+
+---
+
+# 附录 AN（append-only） — P21 LOCAL AI PROVIDER · UNIVERSAL MODEL SELECTION
+
+性质：**HUMAN DECISION FREEZE（冻结）**
+日期：2026-10-05
+关联实现合约：`docs/architecture/P21_LOCAL_AI_PROVIDER_IMPLEMENTATION_CONTRACT.md`
+关联前置：`P21 LOCAL AI PROVIDER — HUMAN DECISION → PREP`（LOCAL AI PREP = PASS）
+边界：附录 A–AM **零改写**；本附录为新增，不重排历史编号、不删除历史决策。
+
+## AN.1 冻结决策
+
+### HD-P21-AI-01 — LM Studio Authentication = OPTION B（FROZEN）
+
+```text
+LM Studio Local Provider：authentication = optional
+未要求认证 → 直连本地
+要求认证   → 客户手工输入 local token
+```
+
+Token 规则：memory-only · actor-scoped · tenant-scoped · connection-scoped ·
+TTL 沿用既有 ephemeral AI connection 语义。
+
+禁止：filesystem auto-read · environment auto-read · config auto-read ·
+credential-store auto-read · DB persistence · localStorage · sessionStorage ·
+cookie · URL · logs · browser console · cloud forwarding。
+**不得自动读取用户机器上的任何本地凭证。**
+
+### HD-P21-AI-02 — Local Model Catalog = OPTION A（FROZEN）
+
+```text
+Local Runtime 实际可用模型以本地 Provider 实时 Model Discovery 为权威：
+Ollama / LM Studio → GET /v1/models → actual available models
+```
+
+`ai_models` **不是** Local Host 当前实际安装模型的唯一权威；其用途限于
+provider model metadata / capabilities / classification / privacy / platform metadata。
+客户只能选择当前 Local Host 实际发现的模型；不存在的本地模型不得显示为可用。
+
+### HD-P21-AI-03 — Local `ai_routes` = OPTION C（FROZEN）
+
+```text
+P21 Local AI 第一版：NO new persistent Local ai_routes
+                     NO migration
+                     NO new route rows required for local discovery
+```
+
+客户所选 Local Model 通过 `actor + tenant + ephemeral local connection + provider + model`
+绑定；不因本机模型变化而写入持久化 `ai_routes`。
+
+### HD-P21-AI-04 — Universal Model Selection（FROZEN）
+
+All AI Providers MUST expose explicit Model Selection：
+
+```text
+Provider Selection → Model Selection → Credential / Connection → Enable
+```
+
+No Provider may silently choose the customer's model when a selectable model catalog
+exists。Provider 与 Model 是两个独立语义：
+`Provider = AI service` · `Model = concrete model under that service`。
+
+适用于 OpenAI / DeepSeek / Qwen / Zhipu GLM / Kimi(Moonshot) / MiniMax（catalog）
+与 Ollama / LM Studio（real-time local discovery）。
+前端 MUST NOT 发明 model identifier；model display name 与 model key 必须来自
+provider catalog 或 real-time local discovery。
+
+### Model Qualification Rule（FROZEN）
+
+Provider qualification MUST NOT imply model qualification：
+
+```text
+Provider
+   ├── Model A → PASS | BLOCKED | FAIL | N/E
+   ├── Model B → PASS | BLOCKED | FAIL | N/E
+   └── Model C → PASS | BLOCKED | FAIL | N/E
+```
+
+`DeepSeek Provider PASS ≠ 所有 DeepSeek 模型 PASS`。
+
+### Customer UX Rule（FROZEN）
+
+客户只看到：`连接 AI → 选择服务 → 选择模型 → 输入必要信息 → 一键启用`。
+客户 MUST NOT 被要求理解 Adapter / Base URL / Protocol / Secret Ref / Runtime /
+Agent / Tool / Tenant / Space / ai_route。
+
+### Security Rule（FROZEN）
+
+无静默云端回退：Local 不可用 / Local 模型不可用 / Local 请求失败 → fail closed；
+Local 需要认证 → 询问客户。
+**永不** `Local failure → silently send request to cloud Provider`。
+
+### Database Rule（FROZEN）
+
+上述决策 **不授权** migration / DDL / DML / new ai_routes /
+new persistent local credentials。实现必须保持 `Core → Domain = 0` 与
+`Schema change = 0 unless separately authorized`。
+
+## AN.2 授权边界
+
+```text
+本组决策授权：P21 LOCAL AI PROVIDER IMPLEMENTATION CONTRACT 的 preparation
+              + 其后的独立 Implementation Authorization
+本组决策不等同于：Implementation PASS / Acceptance PASS / Release AUTHORIZATION /
+                  Production AI AUTHORIZATION / P22 AUTHORIZATION
+```
+
+## AN.3 状态
+
+```text
+HD-P21-AI-01 = FROZEN
+HD-P21-AI-02 = FROZEN
+HD-P21-AI-03 = FROZEN
+HD-P21-AI-04 = FROZEN
+OQ-E         = OPTION A（本附录即为该裁定的落位）
+P21 MULTI-PROVIDER REAL AI QUALIFICATION = BLOCKED / NOT PASS（不被本附录改动）
+```
+
+**END OF PLATFORM_DECISION_LOG（P21 LOCAL AI PROVIDER · UNIVERSAL MODEL SELECTION · 附录 AN（append-only）· 性质 HUMAN DECISION FREEZE · HD-P21-AI-01 至 04 冻结 · Model Qualification Rule · Customer UX Rule · Security Rule · Database Rule · 附录 A–AM 零改写；2026-10-05）**
+
+---
+
+# 附录 AO（append-only） — P21 COMPANY DESKTOP UI · RBAC + SCOPE + DATA CLASSIFICATION + AI COPILOT
+
+性质：**HUMAN DECISION FREEZE（冻结 DESIGN）**
+日期：2026-10-05
+来源：`P21 COMPANY DESKTOP UI — RBAC + SCOPE + DATA CLASSIFICATION + AI COPILOT · HUMAN DECISION FREEZE PROPOSAL`
+（PROPOSED FOR HUMAN DECISION），经 Human 以 **OPTION B** 批准：**采纳核对修正后冻结**。
+关联：附录 AF（P20 Company Domain）· 附录 AG（P20 Company API）· 附录 AN（P21 Local AI / Universal Model Selection）
+边界：附录 A–AN **零改写**；本附录为新增；不重排历史编号、不删除历史决策。
+
+## AO.0 批准形式与相对原提案的修正（5 项）
+
+```
+C1（关键）D-CUI-17 / §20：Platform Admin 的能力方向与已冻结的部署现实相反
+  现实：platform_admin 持有 23/23 全部权限（含全部 11 条 company 权限，依 AF D-P20D-01）；
+        tenant_admin（6 条）与 space_admin（15 条）持有 0 条 company 权限。
+  修正：本 Freeze 只冻结「Platform Governance 与 Company Business Administration 职责分离」
+        的语义目标，并显式登记「解除 platform_admin 默认公司变更权」为待决；
+        该解除与 Company Admin 的角色建立/授予，一并另立独立 Human Decision。
+
+C2 §20 能力矩阵的 L1–L4 角色当前并不存在
+  现实：现存角色仅 platform_admin / tenant_admin / space_admin；
+        Company Admin / Department Manager / Team Lead / Employee 均无角色定义。
+  修正：本 Freeze 冻结五层「逻辑角色语义」；实际角色定义与授予另立独立 Human Decision。
+
+C3 §20 的 Team Lead 行与 D-CUI-09 / D-CUI-15 自相矛盾
+  修正：Team Lead / Team AI 在 V1 一律记为 DISABLED（无可证明 Team Scope 权威来源）。
+
+C4 §20 的 Employee（SELF）行与已冻结的 AF D-P20D-07 冲突
+  修正：V1 不支持员工自助访问（依 AF D-P20D-07）；Personal AI 仅限不含公司数据的通用对话，
+        否则记为 N/E。
+
+C5 D-CUI-16 的提案对象在 §30（禁止新表/新 DML）下无技术物化路径
+  修正：本 Freeze 只冻结提案语义与确认链；提案对象的技术物化（会话内 / 无状态签名 /
+        或其他）另立独立 Human Decision。
+```
+
+## AO.1 权威架构原则（冻结）
+
+```
+P21 Company 继续建立于现有 UAP Platform Core 之上：
+Identity · Tenant · Space · Membership · Permission · Authorization · Resource ·
+Classification · AI Gateway · Agent Runtime · Company Domain · Company API · Frontend Foundation
+
+禁止重建：Second Identity / Tenant / RBAC / Authorization / AI Gateway / Model Registry / Audit System
+核心不变量：Core → Domain = 0
+Company = Tenant · Department = Space
+不创建：company_departments / departments / sys_company_* / company_teams
+```
+
+## AO.2 冻结决策（D-CUI-01 … D-CUI-18，含 AO.0 修正）
+
+```text
+D-CUI-01 = A（Workspace-first）
+  Company Workspace = Overview / Employees(+Detail) / Assignments(+Detail) / Reports / AI Copilot
+  按用户权限动态呈现；Frontend = Capability-aware，Backend = Authorization authoritative。
+  页面不可见 ≠ 权限被撤销；API 仍必须重新执行 Authentication / Tenant / Authorization /
+  Scope / Resource / Action。
+  【修正标注 C2/C5-adjacent】Reports 与「工作区内 AI Copilot」当前不存在，为新增 UI 面；
+  capability-aware 呈现当前仅有占位实现，属待建。
+
+D-CUI-02 = A（层级）
+  Tenant = Company ； Space = Department ； Team = Authorization Scope Concept（V1 不建 Team Domain）。
+  Employee = User Identity + Company Employee Domain Resource，二者不得混为一概念。
+
+D-CUI-03 = A（Role + Scope 模型）
+  Effective Capability = Authentication × Role × Permission × Scope × Resource Authorization ×
+  Classification × Current State × Action Transition Rule ；角色 ≠ 数据范围。
+
+D-CUI-04 = A（五层逻辑角色）
+  L0 Platform Admin（Platform Governance）· L1 Company Admin（Tenant）· L2 Department Manager（Space）·
+  L3 Team Lead（Team / Delegated）· L4 Employee（Self）。
+  Platform Admin 不是 Company hierarchy 的最高业务角色；与 Company Admin 职责隔离。
+  【修正 C2】以上为逻辑角色语义；实际角色定义与授予另立独立 Human Decision。
+
+D-CUI-05 = A（AI Scope）
+  Company AI Scope = SELF / TEAM / SPACE / TENANT ；AI Scope ≤ User Effective Scope 。
+  Platform Admin 不自动继承 Company Tenant Scope 。
+  【修正 C3/C4】TEAM 层当前不可用（见 D-CUI-09/15）；SELF 层当前不可用（依 AF D-P20D-07）。
+
+D-CUI-06 = B（Answer / Proposal）
+  只开放 ANSWER 与 PROPOSE；不开放 AI DIRECT EXECUTE 。
+  禁止 AI → DB ； AI → Repository ； AI → Direct Domain Mutation 。
+
+D-CUI-07 = A（动作与既有 11 权限的映射）
+  不新建 Permission Vocabulary 。既有 11 条 company 权限为唯一业务授权基础。
+  Suspend → company_employee.update + lifecycle transition rule ；
+  Terminate → company_employee.update + lifecycle transition rule ；
+  Assignment End → company_assignment.update + assignment transition rule 。
+  permission ≠ lifecycle transition ；company_employee.delete / company_employee.admin /
+  company_assignment.delete 保持 RESERVED（无运行时授权、无 API 暴露），
+  V1 runtime ceiling 不开放 physical DELETE / administrative override 。
+
+D-CUI-08 = B（Terminate 权限）
+  Company Admin = ALLOW ；Department Manager = DENY ；Team Lead = DENY ；Employee = DENY 。
+  Terminate = 高影响生命周期变更，V1 保持在 Company-wide administrative authority 。
+
+D-CUI-09 = B（Team Lead 能力）
+  Team Lead V1 语义：Read/List Team Employees、Read/List Team Assignments、Create/Update/End Team Assignment、
+  Team AI、Self AI 。不允许：Create/Terminate/Suspend Employee、Company Reports、Cross-Team、
+  Cross-Space、Tenant-wide AI 。
+  Team Scope 必须具有真实、可验证权威来源：NO NEW TEAM TABLE IN P21 ；NO FAKE TEAM AUTHORIZATION 。
+  若平台无足够 Team / Delegated Scope 权威数据：Team Lead Runtime = NOT ENABLED ，
+  禁止 Frontend fake filtering 。
+  【修正 C3】依 D-CUI-15，当前无可证明 Team Scope ⇒ Team Lead runtime 记为 DISABLED 。
+
+D-CUI-10 = A（Knowledge Base 授权）
+  Document → Resource → Tenant/Space → Classification → Authorization → AI Policy → Retrieval 。
+  不建立 role_id → kb_id 独立链；KB authorization = UAP Resource Authorization + Classification + AI Policy 。
+
+D-CUI-11 = A（Tool Risk 与确认）
+  复用既有 UAP Tool / Permission / Risk 体系。Read-only = LOW RISK（employee_list / assignment_list /
+  summary / query）。高风险（employee_suspend / employee_terminate / assignment_end）=
+  PROPOSAL REQUIRED + HUMAN CONFIRMATION REQUIRED ；确认后走 Company API ，
+  禁止 AI Tool direct DB write 。
+
+D-CUI-12 = B（Quota）
+  Policy-ready, Schema-deferred 。概念上允许 Tenant/Space/Role/User 粒度，但不新增 quota schema
+  （不新增 ai_quotas / company_ai_quotas / ai_usage_policy_v2），除非未来单独 Human Decision 。
+
+D-CUI-13 = A（显式模型 / 无静默回退）
+  Provider ≠ Model 。用户显式选择 Provider + Model ；运行期 Selected Provider + Selected Model 保持一致。
+  禁止 silent model replacement ；禁止 Local failure → Cloud fallback 。任何未来 fallback 需独立 Human Decision 。
+
+D-CUI-14 = A（Intelligence API 职责边界）
+  /intelligence/... 定位为 Domain-facing Intelligence Facade / Orchestration API ，不是第二套 AI Runtime 。
+  Company UI → Intelligence API → Existing Agent / Runtime → Authorization → AI Gateway → Provider/Model 。
+  禁止 Company → New AI Engine → New Gateway ；Existing AI Gateway 保持平台级基础设施。
+  【修正标注】该 API 面当前不存在，属新增；其授权再推导属实现合同内容。
+
+D-CUI-15 = C（Team Scope 权威来源 = Deferred Authority）
+  P21 不新建 Team Domain 。Team Scope 只能来自既有权威 membership / delegation / assignment 语义。
+  无法提供可证明 Team membership ⇒ Team Scope = unavailable ⇒ Team Lead runtime capability = disabled 。
+  禁止 Frontend-only team filtering ；禁止「Prompt 说 Team A 即视为 Team A 范围」；
+  禁止 client-provided team_id 被当作授权。未来需要独立 Team 时：new Human Decision 。
+
+D-CUI-16 = A（Proposal Confirmation 安全模型）
+  Proposal 必须包含：proposal_id / actor / tenant / scope / resource / action / expected_state /
+  created_at / expires_at 。
+  确认链：AI Proposal → Human Confirm → Re-authentication / current session verification →
+  Re-Authorization → Scope Check → Resource Check → Current State Check → Existing Company API 。
+  禁止 AI ALLOW → Frontend direct mutation ；禁止 Old authorization decision → Delayed blind execution 。
+  Proposal 必须过期；确认时必须重新授权；状态已变 ⇒ Proposal = STALE，不得执行。
+  【修正 C5】提案对象的技术物化另立独立 Human Decision（本 Freeze 只冻结语义）。
+
+D-CUI-17 = A（Platform Admin 与 Company UI）
+  Platform Admin ⇒ Platform Governance UI ；Company Admin ⇒ Company Business UI 。
+  Platform Admin 不因 platform permissions 自动获得 Company mutation rights ；
+  Company Admin 不自动获得 AI Provider Governance / Model Registry Governance / Control Plane /
+  Database Administration / Platform Configuration 。
+  【修正 C1（关键）】当前部署态中 platform_admin 持有全部 11 条 company 权限（AF D-P20D-01），
+  故本条的语义目标尚未成立；「解除 platform_admin 默认公司变更权」与「company/tenant/space 级
+  角色的建立与授予」另立独立 Human Decision 。
+
+D-CUI-18 = A（Classification Enforcement Boundary）
+  Company AI 必须在进入 Model Provider 之前完成：Resource → Classification → AI Policy →
+  Provider / Model Eligibility 。classification 不得被 Frontend / AI Prompt / AI Tool 自行降低。
+  HIGHLY_CONFIDENTIAL 不得因主模型失败而流向 Public Cloud Model ；禁止任何 classification downgrade ，
+  除非经过独立授权流程。
+  【修正 C4】§20 的 Employee（SELF）行依 AF D-P20D-07（V1 不支持 SELF）改为不支持。
+```
+
+## AO.3 Company UI Capability 总矩阵（修正版）
+
+`DISABLED` = 依 D-CUI-09 / D-CUI-15，当前无可证明 Team Scope，运行时不得启用（禁止前端假过滤）。
+`❌ by default` = 语义目标；当前部署态 platform_admin 仍实际持有全部 company 权限（见 AO.0-C1）。
+
+| Capability | Platform Admin | Company Admin | Dept Manager | Team Lead | Employee |
+| --- | --- | --- | --- | --- | --- |
+| Company Overview | ❌ by default | ✅ Tenant | ✅ Space | DISABLED | ❌ |
+| Employee List | ❌ by default | ✅ Tenant | ✅ Space | DISABLED | ❌ |
+| Employee Detail | ❌ by default | ✅ | ✅ | DISABLED | ❌（AF D-P20D-07） |
+| Create Employee | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Edit Employee | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Suspend | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Terminate | ❌ by default | ✅ | ❌ | DISABLED | ❌ |
+| Assignment List | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Assignment Create | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Assignment Update | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Assignment End | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Company Reports | ❌ by default | ✅ | ❌ | DISABLED | ❌ |
+| Tenant AI | Platform governance only | ✅ | ❌ | DISABLED | ❌ |
+| Space AI | ❌ by default | ✅ | ✅ | DISABLED | ❌ |
+| Team AI | ❌ | ❌ | ❌ | DISABLED | ❌ |
+| Personal AI | Platform policy-dependent | ✅ | ✅ | DISABLED | 仅无公司数据通用对话；否则 N/E |
+
+## AO.4 AI Context Trust Boundary / Data Minimization / Citation / History / Logging（冻结）
+
+```text
+Frontend Context ≠ Authorization Context
+  Frontend 可发送 surface / space_id / filters ；Backend 必须重新推导 Actor / Tenant / Role /
+  Scope / Permission / Resource / Classification 得到 Authorized Context 后才进入 AI Runtime 。
+
+AI Data Minimization
+  Question → Authorized Query → Minimal Result → Redaction → AI 。
+  禁止 Whole Table → LLM ；只发送必要字段（如 employee_id / name / status / assignment_status）；
+  UI Visible ≠ AI Required 。
+
+AI Citation
+  Citation 形如 {type, id, label}；点击必须重新走 Authentication / Authorization / Scope / Resource ，
+  不得因 Citation 由 AI 输出而绕过权限。
+
+AI 驱动 UI
+  AI → UI Intent → Backend Validation → Authorized UI State 。
+  AI 可 navigate / filter / summarize / explain / propose ；
+  不得 grant access / expand scope / change role / bypass authorization 。
+
+AI History
+  P21 V1：NO NEW AI CONVERSATION TABLES（不新增 ai_conversations / ai_messages / ai_threads）；
+  第一阶段为 browser session memory ；持久化会话 / 共享 AI / AI memory / AI search 均需新 Human Decision 。
+
+AI Logging
+  继续使用 ai_request_logs ，不新增 company_ai_call_log / ai_copilot_log ；
+  audit_logs 继续承担 security / authorization / high-risk action / accountability 。
+  原始 Prompt NOT WRITTEN TO ai_request_logs ；Raw secret NEVER LOGGED 。
+```
+
+## AO.5 API / UI / Database 边界（冻结）
+
+```text
+Company API        = Company Business Mutation Authority
+Intelligence API   = AI-facing orchestration boundary
+AI Gateway         = Platform AI infrastructure
+Company Domain     = Business rules
+
+AI ≠ Authorization Authority ； AI ≠ Domain Authority ； AI ≠ Database Authority
+
+UI 允许：Navigation / Pages / Tables / Filters / Forms / Details / Actions / Role-aware rendering /
+        Scope-aware views / AI Panel / Citation / Proposal UI
+UI 不得因此引入：Redis / OPA / Casbin / Keycloak / Milvus / MinIO / Tauri / Electron
+（除非未来独立 Human Decision）；继续使用 React + Vite + TypeScript 现有 Frontend Foundation。
+
+Database：本 Freeze 不授权 migration / DDL / DML / new table / new index / new trigger /
+  new route persistence / new local credential persistence / new team table / new quota table /
+  new conversation table 。特别禁止 sys_user / sys_role / sys_permission / company_departments /
+  company_teams / company_ai_* 等平行体系。
+```
+
+## AO.6 最终请求链（冻结）
+
+```text
+Read：Desktop → Authentication → Tenant → Permission → Scope → Resource → Classification →
+      AI Policy → AI Gateway → Selected Model → Provider
+
+Proposal：Desktop → Authentication → Authorization → Scope → Resource → Classification → AI →
+      Proposal → Human Confirmation → Re-Authorization → Company API → Company Domain → Database
+```
+
+## AO.7 强制安全不变量 S1–S18（冻结）
+
+```text
+S1  Frontend cannot override Tenant
+S2  Frontend cannot override Scope
+S3  Frontend cannot override Permission
+S4  AI cannot bypass Authorization
+S5  AI cannot access unauthorized Resource
+S6  AI cannot directly access Database
+S7  AI cannot directly access Repository
+S8  AI mutation must use Company API
+S9  AI cannot downgrade Classification
+S10 AI cannot silently change selected Model
+S11 Local AI failure cannot silently fallback to Cloud
+S12 Provider secrets never reach Browser
+S13 Raw prompt is not written to ai_request_logs
+S14 Proposal confirmation must re-authorize
+S15 Stale proposal cannot execute
+S16 Team Scope cannot be inferred from frontend context
+S17 Platform Admin does not automatically become Company Admin
+S18 Company Admin does not automatically become Platform Admin
+
+【现状说明】S6/S7/S8/S10/S11/S13 在当前系统中已成立（AI 工具仅 platform.clock.now 与
+company.employee_list，均可只读；上一轮已验 ai_request_logs 不写原始 prompt）。
+S17 在部署态尚未成立（platform_admin 现持有全部 11 条 company 权限，见 AO.0-C1），
+需独立授予决策后方可成立。
+```
+
+## AO.8 明确推迟（Explicitly Deferred — 均需 FUTURE HUMAN DECISION）
+
+```text
+角色实际定义与授予（Company Admin / Department Manager / Team Lead / Employee）
+解除 platform_admin 默认公司变更权
+Team Scope 权威来源与 Team Domain / Team persistence
+Proposal 技术物化（会话内 / 无状态签名 / 持久化）
+Quota schema · Persistent AI history · Shared AI memory · Knowledge Base storage implementation
+Automatic / cross-provider model fallback · Advanced RAG engine · New AI route persistence · AI billing
+Redis · Vector database · Object storage · RLS redesign · Platform Control Plane redesign
+```
+
+## AO.9 本轮平台核验证据（只读，2026-10-05）
+
+```text
+权限/角色实测（demo 库 uap_p21_demo_company）：
+  permissions=23 · roles=8 · role_permissions=44
+  platform_admin → 23 条授予（含全部 11 条 company 权限）
+  tenant_admin   → 6 条（member.* / tenant.*），company 权限 0
+  space_admin    → 15 条（member.* / space.*），company 权限 0
+Company API 路由 = 11（含 suspend / terminate / end；路由层无权限判断，授权在服务层强制）
+平行体系表命中 = 0（company_departments / departments / company_teams / ai_conversations /
+  ai_quotas / sys_user / sys_role 等）
+前端：公司模块 5 页面 + NotFound；Reports 命中 0；/intelligence 不存在；
+  capability 模块为占位（unknown|unavailable + CapabilityHint）
+AI 工具 = platform.clock.now / company.employee_list（均可只读）；无提案生命周期对象
+本轮：source change 0 · DB DDL 0 · DB DML 0 · commit/tag/push 0
+```
+
+## AO.10 状态与边界
+
+```text
+DESIGN = FROZEN （D-CUI-01 … D-CUI-18，含 AO.0 五项修正）
+Implementation = NOT AUTHORIZED
+Migration / DDL / DML / 新 Permission / 新角色 / 新授予 = NOT AUTHORIZED
+Team Scope 权威来源 = 独立 Human Decision
+Proposal 技术物化 = 独立 Human Decision
+Release / Production AI / P22 = NOT AUTHORIZED
+本 Freeze 不绕过既有 P21 AI Acceptance Gate；不宣布 Production AI = READY
+下一步（需 Human 指令）：P21 COMPANY UI PREP → Implementation Contract → Implementation Authorization
+HARD STOP = ACTIVE
+```
+
+**END OF PLATFORM_DECISION_LOG（P21 COMPANY DESKTOP UI · RBAC + SCOPE + DATA CLASSIFICATION + AI COPILOT · 附录 AO（append-only）· 性质 HUMAN DECISION FREEZE（DESIGN FROZEN）· OPTION B 批准（采纳 C1–C5 修正）· D-CUI-01…18 · 能力矩阵修正版 · S1–S18 · 角色授予 / Team Scope 权威 / Proposal 技术物化 = 独立 Human Decision · 附录 A–AN 零改写；2026-10-05）**
+
+---
+
+# 附录 AP（append-only） — P21 COMPANY UI · OQ-CUI-01…09 冻结 + F-1…F-4 采纳
+
+性质：**HUMAN DECISION FINAL AUTHORIZATION（DESIGN FULLY FROZEN）**
+日期：2026-10-05
+来源：`P21 COMPANY UI — OQ-CUI-01 … OQ-CUI-09 · HUMAN DECISION FINAL AUTHORIZATION`
+关联：附录 AO（D-CUI-01…18）· AF（P20 Company Domain）· AG（P20 Company API）· AL（P21 Frontend Foundation）· AN（P21 Local AI / Universal Model Selection）
+边界：附录 A–AO **零改写**；本附录只新增 OQ-CUI-01…09 与 F-1…F-4；不重排历史编号。
+
+## AP.1 冻结决策
+
+```text
+OQ-CUI-01 = A（Server-projected Capability）
+  允许新增 GET /tenants/{tenant_id}/company/capabilities ，定位为 Capability Projection，
+  由 Authenticated Actor + Tenant + Existing AuthorizationService + Authorized Resource/Scope 推导；
+  非第二套授权引擎、非角色查询 API。前端不得依据 role name / username / URL / localStorage /
+  client-provided permission 自行推断权限；不得接受 body permissions 或 client-provided role。
+  Hide button ≠ permission denial；后端 403 始终是最终结论。
+
+OQ-CUI-02 = A（Operational Read-only Reports）
+  Reports V1 仅基于现有 Company 数据只读汇总：Headcount / Employee lifecycle summary /
+  Assignment summary / Unassigned employee summary / Space-level employee counts /
+  Space-level assignment counts。链路：Existing Company Data → Authorized Query → Aggregation →
+  Read-only Response。禁止 company_reports / reporting DB / analytics DB / data warehouse /
+  预计算报表表。Reports 服从 Tenant + Authorization + Scope + Resource。
+
+OQ-CUI-03 = A（Intelligence Facade）
+  Company Copilot 使用 POST /intelligence/tenants/{tenant_id}/assistant/runs ，
+  定位 Domain-facing Intelligence Facade（非第二套 AI Runtime / AI Gateway / 授权引擎）。
+  请求：{ message, context{surface, space_id, resource_id}, mode: "answer" | "propose" }；
+  不开放 execute。Actor / Tenant / Scope / Permission 一律由后端重新推导；
+  禁止 body tenant_id / body actor_id / body role / body permission / client authorization context。
+
+OQ-CUI-04 = A（Backend-authoritative Citation）
+  Citation 必须来源于 Authorized Backend Query（Authoritative Resource → Citation Reference →
+  AI Response），至少含 type / id / label，必须指向 existing Company Resource；
+  不得由 Model 自行伪造 Resource ID。点击必须重新经过 Authentication / Authorization / Scope / Resource。
+
+OQ-CUI-05 = A（Ephemeral Non-persistent Proposal）
+  P21 V1 Proposal = ephemeral / session-bound / non-persistent；语义须含 proposal identity /
+  actor / tenant / scope / resource / action / expected state / expiration；
+  确认链 = Re-authentication（Current Session Verification）→ Authorization → Scope → Resource →
+  Current State Revalidation → Existing Company API。不可伪造 / 不可重放 / 过期保护的技术实现
+  由 Implementation Contract 规定。不授权 proposal table / proposal event system /
+  persistent proposal history；禁止 AI approval → frontend direct mutation 与 old proposal → blind execution。
+
+OQ-CUI-06 = B（Target Roles via existing role system）
+  目标角色 company_admin / department_manager / team_lead / employee 继续使用现有
+  roles / role_permissions / membership 体系；禁止 company_roles / company_role_permissions 等第二套系统。
+  6.1 V1 只允许物化 company_admin（scope=TENANT）与 department_manager（scope=SPACE）；
+      team_lead 与 employee 只冻结逻辑语义、不创建角色行，直到另有 Human Decision 扩展 Scope 模型。
+  6.2 目标 Company 管理角色使用既有 8 条 operational permissions
+      （company_employee.read/list/create/update + company_assignment.read/list/create/update）；
+      company_employee.delete / company_employee.admin / company_assignment.delete 继续 RESERVED。
+  6.3 platform_admin 保留现有部署态 Company grants —— 本决策 NO GRANT REVOCATION ；
+      D-CUI-17 只冻结「Platform Governance ≠ Company Business Administration」语义；
+      未来撤销 platform_admin → company_* 必须另立独立 Human Decision。
+
+OQ-CUI-07 = C（Team Authority Deferred）
+  Team authority = NONE ⇒ Team Lead Runtime = DISABLED · Team AI = N/E。
+  不得创建 team table / team membership table / team delegation / company_team；
+  不得以 Frontend filtering 模拟 Team authorization。启用 Team 须先有独立
+  Team Scope Authority Decision。
+
+OQ-CUI-08 = C（SELF Authorization Deferred）
+  继续遵守 D-P20D-07 = A ⇒ Employee Company Workspace = DISABLED ；
+  Company SELF Authorization = NOT ENABLED。不得新增 SELF policy engine / SELF ACL bypass /
+  employee-specific authorization shortcut。普通 Personal AI 可以存在，
+  但不得访问 Company-scoped SELF data。
+
+OQ-CUI-09 = A（Platform Intelligence API Ownership）
+  /intelligence 属于 UAP Intelligence Delivery Boundary；
+  Company UI → Intelligence API → Existing AI Orchestration / Runtime → Authorization →
+  AI Policy → AI Gateway → Provider / Model。禁止 Intelligence → direct SQL /
+  authorization bypass / repository bypass ；禁止 AI → DB。
+  Company Domain 继续承担 Employee / Assignment / Business Rules。
+```
+
+## AP.2 F-1…F-4 采纳（现实平台约束）
+
+```text
+F-1 = ACCEPTED（Role Scope Constraint）
+  V1 只物化 company_admin（TENANT）与 department_manager（SPACE）；不物化 team_lead / employee。
+  任何 Scope vocabulary 扩展（TEAM / SELF）须新的 Human Decision + DDL authorization。
+
+F-2 = ACCEPTED（Company Route Manifest）
+  本决策明确授权 P21 Company UI Implementation 扩展 Company route manifest；
+  P20 original 11-route manifest 不再视为永久禁止增加路由。
+  可新增 Company-facing routes：capabilities / reports / intelligence facade。
+  但 P20 business route semantics 不得被修改或重定义；
+  未来 Acceptance 必须同时验证「既有 11 条完整」+「新增 P21 路由符合新冻结语义」。
+
+F-3 = ACCEPTED（Employee Space Semantics）
+  company_employees 不增加 space_id；Employee↔Space 关系继续通过 company_assignments 表达；
+  Space-level Employee reporting 必须 Assignment-derived；不得建立第二套 employee-space relation。
+
+F-4 = ACCEPTED（/ai 与 /intelligence 边界）
+  /ai/* = Independent AI onboarding / standalone assistant surface（继续使用）；
+  /intelligence/* = Company / Domain-facing Intelligence Facade。两者不得逐步演化成重复入口；
+  Company Copilot 必须通过 /intelligence；不得创建第三套 AI entry。
+```
+
+## AP.3 角色 / 授予边界
+
+```text
+Semantic Freeze ≠ Grant Execution
+本决策本身不执行 role_permissions DML；允许在后续独立 Implementation Authorization 下实现
+company_admin / department_manager；尤其不得撤销 platform_admin。
+当前部署态 platform_admin → 23 permissions（含 11 company permissions）继续保留，
+直到新的 Grant Decision。
+```
+
+## AP.4 授权边界与后续文档
+
+```text
+本决策批准后允许形成下一阶段：P21 COMPANY UI IMPLEMENTATION AUTHORIZATION
+候选实施范围：Company Workspace · Capability Projection consumption · role-aware UX ·
+  Scope-aware UX · Reports · Company AI Copilot · Intelligence Facade · Citation ·
+  Ephemeral Proposal · Existing Company API integration
+仍不自动授权：Team enablement · SELF enablement · Platform grant revocation ·
+  Persistent Proposal · Persistent AI Conversation · Quota schema · Team schema ·
+  Scope vocabulary expansion · Production AI activation · P22
+
+要求产出（已执行）：
+  1. 本附录 AP（append-only）  2. P21_COMPANY_UI_IMPLEMENTATION_CONTRACT.md（FINAL）
+  3. P21_COMPANY_UI_ACCEPTANCE_MATRIX.md（FINAL）  4. Recordbook Freeze Entry（append-only）
+
+被本附录取代的 DRAFT 版本（仅哈希留档，不删除历史）：
+  P21_COMPANY_UI_IMPLEMENTATION_CONTRACT.md DRAFT
+    sha256 = 98f5fd29d591cb9db35761ce1d0c7f7269f339885c210aa5e406f4b6ed80599f
+  P21_COMPANY_UI_ACCEPTANCE_MATRIX.md DRAFT
+    sha256 = 86eaf4521beee175f175795784198c39ca7c8317c565d5053721104990c2f770
+```
+
+## AP.5 状态
+
+```text
+OQ-CUI-01 = FROZEN · OQ-CUI-02 = FROZEN · OQ-CUI-03 = FROZEN · OQ-CUI-04 = FROZEN ·
+OQ-CUI-05 = FROZEN · OQ-CUI-06 = FROZEN · OQ-CUI-07 = FROZEN · OQ-CUI-08 = FROZEN ·
+OQ-CUI-09 = FROZEN
+F-1 = ACCEPTED · F-2 = ACCEPTED · F-3 = ACCEPTED · F-4 = ACCEPTED
+
+P21 COMPANY UI DESIGN = FULLY FROZEN
+P21 COMPANY UI PREP = PASS
+OQ-CUI = CLOSED
+Implementation Contract = FINAL ；Acceptance Matrix = FINAL
+
+IMPLEMENTATION = NOT AUTHORIZED · MIGRATION = NOT AUTHORIZED · DDL = NOT AUTHORIZED ·
+DML = NOT AUTHORIZED · ROLE GRANTS = NOT AUTHORIZED · TEAM = NOT AUTHORIZED ·
+SELF = NOT AUTHORIZED · AI PRODUCTION = NOT AUTHORIZED · RELEASE = NOT AUTHORIZED ·
+COMMIT = NOT AUTHORIZED · TAG = NOT AUTHORIZED · PUSH = NOT AUTHORIZED · P22 = NOT AUTHORIZED
+HARD STOP = ACTIVE
+```
+
+**END OF PLATFORM_DECISION_LOG（P21 COMPANY UI · OQ-CUI-01…09 FROZEN + F-1…F-4 ACCEPTED · 附录 AP（append-only）· 性质 HUMAN DECISION FINAL AUTHORIZATION（DESIGN FULLY FROZEN）· server-projected capability / operational read-only reports / intelligence facade / backend-authoritative citation / ephemeral proposal / V1 仅 company_admin+department_manager / Team 与 SELF 延后禁用 / /intelligence 拥有 Copilot 边界 · 附录 A–AO 零改写；2026-10-05）**

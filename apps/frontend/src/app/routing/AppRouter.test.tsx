@@ -93,14 +93,14 @@ describe('AppRouter', () => {
   it('sends an unauthenticated visitor to the sign-in page', async () => {
     renderRoute('/');
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to UAP Console' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '登录 UAP' })).toBeInTheDocument();
   });
 
   it('renders the platform home once authenticated', async () => {
     renderRoute('/', { autoLogin: true });
 
     expect(await screen.findByTestId('uap-home-user')).toHaveTextContent('user-1');
-    expect(screen.getByTestId('uap-home-company-status')).toHaveTextContent('IMPLEMENTED');
+    expect(screen.getByTestId('uap-home-company-status')).toHaveTextContent('已上线');
   });
 
   it('renders the Company overview for the URL tenant', async () => {

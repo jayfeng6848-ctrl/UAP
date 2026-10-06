@@ -37,7 +37,9 @@ Operational guidance: [`docs/operations/DEPLOYMENT_AND_RECOVERY.md`](../operatio
 
 ## Authorization decision (contract)
 
-Frozen by `D-AUTH-01`…`D-AUTH-25`. Implementation exists in the working tree (uncommitted); acceptance pending.
+Frozen by `D-AUTH-01`…`D-AUTH-25`. Implemented and accepted — commit `034ee97`,
+tag `UAP-V0.1.8-AUTHORIZATION` (`services/authorization/` + migration
+`0012_authz_enforcement`; full regression `542 passed`).
 
 > Registry: `D-AUTH` total **25** = `FROZEN` **22** + `DEFERRED` **3** + `SUPERSEDED` **0**
 > (`OQ` 22 = 19 + 3; plus the non-OQ `D-AUTH-23` (GAP-11) and `D-AUTH-24` / `D-AUTH-25` (D-B14-08 conflict resolution, 2026-09-24); platform-level supersession = 1: `D-B14-08` → SUPERSEDED by `D-AUTH-05`).
@@ -56,8 +58,9 @@ Frozen by `D-AUTH-01`…`D-AUTH-25`. Implementation exists in the working tree (
 }
 ```
 
-Canonical actions: `READ` `LIST` `CREATE` `UPDATE` `DELETE` `EXECUTE` `APPROVE`
-`REJECT` `PUBLISH` `EXPORT` `SHARE` `ADMIN`.
+Canonical actions (**lowercase** storage/transport form, `D-AUTH-25`; normalised
+on ingress via NFKC → strip → casefold): `read` `list` `create` `update` `delete`
+`execute` `approve` `reject` `publish` `export` `share` `admin`.
 
 - `REQUIRES_APPROVAL` is a **decision state, not a grant** — no caller may treat
   it as executable (`D-AUTH-14`).
@@ -65,6 +68,29 @@ Canonical actions: `READ` `LIST` `CREATE` `UPDATE` `DELETE` `EXECUTE` `APPROVE`
   (`D-AUTH-07`).
 - Every failure path returns `DENY` (`D-AUTH-12`).
 
-> Status: **design frozen — not implemented**. No authorization endpoint exists
-> and `services/` has not been created. See
-> [`docs/architecture/AUTHORIZATION_PREP_REPORT.md`](../architecture/AUTHORIZATION_PREP_REPORT.md).
+> Status: **implemented and accepted**. The contract lives in `core/permission` /
+> `core/policy`; the deciding service is `services/authorization/`. See
+> [`docs/architecture/AUTHORIZATION_IMPLEMENTATION_CONTRACT.md`](../architecture/AUTHORIZATION_IMPLEMENTATION_CONTRACT.md).
+
+## Agent runs (design frozen — no endpoint exists yet)
+
+Run semantics are frozen by `D-AGENT-01`…`D-AGENT-16`; the contract is
+[`docs/architecture/AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md`](../architecture/AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md).
+
+```text
+POST /agent-runs              → 202 Accepted + run_id   (carries idempotency_key)
+GET  /agent-runs/{id}         → state / result          (redacted view)
+POST /agent-runs/{id}/cancel  → idempotent cancellation
+```
+
+- Every route must pass authentication, tenant resolution and authorization
+  **before** doing anything — a Run is itself a controlled operation.
+- The **sync fast path** may return a completed result only when the Run already
+  finished **and** the API contract explicitly allows it; it must **not** create a
+  second execution model (`D-AGENT-01`, `D-AGENT-11`).
+- **Streaming (SSE / WebSocket) = DEFERRED** to a separate decision.
+- A **fourth endpoint** must not be added without a decision.
+
+> Status: **design frozen — not implemented**. No route, package or table exists.
+> Implementation is **BLOCKED** until `P10 ∧ P11 ∧ P12 ∧ P13 ∧ AI Gateway
+> Runtime` are ready (`D-PLAT-09` route A, not superseded).

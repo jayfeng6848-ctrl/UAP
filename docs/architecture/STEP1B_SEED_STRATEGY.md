@@ -163,3 +163,24 @@ INSERT INTO acl_subject_types (id, key) VALUES
 - seed（migration 0006）只写 `platform_state(id=1,'uninitialized')`；**永不**写 initialized —— 初始化只由受信 bootstrap CLI 完成。
 - 硬删/CASCADE/revoke 均不影响 platform_state（无 FK 边 + guard）→ initialized 永久保持，count=0 不能重开。
 - 不允许恢复 API；恢复 = 独立维护程序 + 人工批准 + audit `platform.admin.recovery`（沿用 R4）。
+
+---
+
+## 附注（2026-09-26 · P13 决策指针 —— §4 草稿为**历史候选**）
+
+> 上文 **§4「初始 permissions 字典（seed 示例，B1 定稿）」** 的 13 项草稿 = **historical candidate**，
+> **已被裁定取代**（其原本性质即为「形状示例 / 清单待人工审计」，不构成 vocabulary 冻结）。
+>
+> **current canonical 清单 = `D-P13-01` 的 12 项**（`PLATFORM_DECISION_LOG.md` · 附录 J）：
+>
+> ```text
+> tenant.read · tenant.admin · space.read · space.admin
+> member.read · member.admin · resource.read · resource.update · resource.delete
+> agent.execute · tool.execute · audit.read
+> ```
+>
+> **明确排除（不得 seed）**：`system.*` · `tenant.manage` · `space.manage` · `member.manage` ·
+> `resource.write` · **任何 deny permission**。
+> **映射**：`manage → admin` · `write → update`（仅作**输入别名**，**不进入** DB 词表；`D-AUTH-05` 未被修改）。
+>
+> ⇒ 任何一致性扫描**不得**将 §4 草稿识别为 current decision。

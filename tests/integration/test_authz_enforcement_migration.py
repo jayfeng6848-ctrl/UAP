@@ -52,8 +52,15 @@ AGENT_PERMISSIONS_COLUMNS = (
 
 @pytest.fixture()
 def db():
+    """Upgrade **to this revision**, not to head.
+
+    0012 asserts that it adds no table and leaves the 31-table P09 shape intact;
+    those are properties of *this* revision. Once 0013 (P10) exists, upgrading to
+    ``head`` would inject ``events`` / ``audit_logs`` and make the assertion
+    meaningless — so the target is pinned to ``REVISION``.
+    """
     reset_test_database()
-    upgrade(make_config(lock_mode="fail"), "head")
+    upgrade(make_config(lock_mode="fail"), REVISION)
     assert current_revision() == REVISION
     yield
     reset_test_database()
@@ -378,7 +385,7 @@ def test_downgrade_reverts_to_the_previous_revision_with_no_residue(db) -> None:
         conn.close()
         engine.dispose()
 
-    upgrade(make_config(lock_mode="fail"), "head")
+    upgrade(make_config(lock_mode="fail"), REVISION)
     assert current_revision() == REVISION
 
 
@@ -416,7 +423,7 @@ def test_preflight_refuses_to_tighten_a_column_holding_bad_values(db) -> None:
         conn.close()
         engine.dispose()
 
-    upgrade(make_config(lock_mode="fail"), "head")
+    upgrade(make_config(lock_mode="fail"), REVISION)
     assert current_revision() == REVISION
 
 

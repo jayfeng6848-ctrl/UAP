@@ -1,4 +1,4 @@
-"""AI gateway orchestration (P16-D03 / D04 / D07).
+"""AI gateway orchestration (P16-D03 / D04 / D07 · HD-P21-AI-01..04).
 
 Composes: provider row -> adapter (registry) -> credential (resolver) -> LLM
 call -> completion. The gateway never touches a database or a vendor SDK; the
@@ -8,6 +8,11 @@ performs the actual write.
 Credential material stays inside the adapter boundary: the gateway passes a
 :class:`~services.ai.credentials.SecretValue`, never a plaintext string it could
 log or return.
+
+HD-P21-AI-01..04: the protocol mode is resolved **explicitly** (row config, then
+the server-side profile — never an implicit ``responses``), a LOCAL endpoint is
+checked against the loopback allowlist before any request is built, and a local
+failure maps onto the frozen LOCAL taxonomy instead of a generic cloud failure.
 """
 
 from __future__ import annotations
@@ -16,10 +21,17 @@ import time
 from typing import Any, Callable, Mapping
 
 from core.agent import AgentRuntimeError, ErrorCode
+from infrastructure.ai.adapters import (
+    ProviderHttpError,
+    ProviderProtocolError,
+    ProviderRedirectError,
+    assert_local_base_url_allowed,
+)
 from intelligence.gateway.interfaces import AICompletion, AIRequest
 from intelligence.providers.interfaces import ProviderRegistry
 
 from .credentials import SecretResolver
+from .providers import LOCALITY_LOCAL, MODES, get_profile
 
 #: Fields that may be handed to ``ai_request_logs`` (never prompt/secret material).
 LOG_FIELDS = (
@@ -38,6 +50,13 @@ LOG_FIELDS = (
     "prompt_tokens",
     "completion_tokens",
 )
+
+
+def _model_request_failed(exc: BaseException) -> AgentRuntimeError:
+    """Safe diagnostic only: the exception *class* (never its message) is attached."""
+    error = AgentRuntimeError(ErrorCode.MODEL_REQUEST_FAILED, "model request failed")
+    error.detail = type(exc).__name__  # type: ignore[attr-defined]
+    return error
 
 
 class AIGatewayService:
@@ -67,31 +86,81 @@ class AIGatewayService:
         if adapter is None:
             raise AgentRuntimeError(ErrorCode.PROVIDER_UNAVAILABLE, "no adapter registered")
 
+        profile = get_profile(provider_row.get("key"))
+        row_config = provider_row.get("config") or {}
+        # HD-P21-AI-01..04 §8: no implicit mode. The row's own config wins, then the
+        # server-side profile; anything else is a configuration error, not a guess.
+        mode = row_config.get("mode") or (profile.mode if profile is not None else None)
+        if mode not in MODES:
+            raise AgentRuntimeError(
+                ErrorCode.PROVIDER_UNAVAILABLE, "provider protocol mode is not configured"
+            )
+        local = (profile.locality if profile is not None else None) == LOCALITY_LOCAL or str(
+            row_config.get("locality") or ""
+        ) == LOCALITY_LOCAL
+        if local and profile is not None:
+            # §12: refuse a non-loopback endpoint before the request exists.
+            assert_local_base_url_allowed(profile.key, str(provider_row.get("base_url") or ""))
+
         secret_ref = provider_row.get("secret_ref")
         secret = self._credentials.resolve(str(secret_ref)) if secret_ref else None
 
         config = {
             "key": provider_row.get("key"),
             "base_url": provider_row.get("base_url"),
-            "config": provider_row.get("config") or {},
+            "config": row_config,
             "secret": secret,
             "model_key": model_row.get("model_key"),
+            "mode": mode,
         }
-        provider = adapter.build(config)
+        try:
+            provider = adapter.build(config)
+        except ValueError as exc:  # adapter-level fail-closed assertion
+            raise AgentRuntimeError(
+                ErrorCode.PROVIDER_UNAVAILABLE, "provider configuration is not usable"
+            ) from exc
 
         started = time.monotonic()
         try:
             completion = provider.complete(request)
         except AgentRuntimeError:
             raise
+        except ProviderRedirectError as exc:
+            # A 3xx is refused, never followed (§12) — for a local endpoint that is
+            # a protocol violation; for a cloud endpoint it is a transport failure.
+            if local:
+                raise AgentRuntimeError(
+                    ErrorCode.LOCAL_PROVIDER_PROTOCOL_ERROR, "local provider redirect refused"
+                ) from exc
+            raise _model_request_failed(exc) from exc
+        except ProviderHttpError as exc:
+            if local and exc.status in (401, 403):
+                raise AgentRuntimeError(
+                    ErrorCode.LOCAL_PROVIDER_AUTH_REQUIRED,
+                    "local provider requires authentication",
+                ) from exc
+            raise _model_request_failed(exc) from exc
+        except ProviderProtocolError as exc:
+            if local:
+                raise AgentRuntimeError(
+                    ErrorCode.LOCAL_PROVIDER_PROTOCOL_ERROR,
+                    "local provider answered a non OpenAI-compatible payload",
+                ) from exc
+            raise _model_request_failed(exc) from exc
         except TimeoutError as exc:  # provider-side timeout
+            if local:
+                raise AgentRuntimeError(
+                    ErrorCode.LOCAL_AI_UNAVAILABLE, "local provider timed out"
+                ) from exc
             raise AgentRuntimeError(ErrorCode.MODEL_REQUEST_FAILED, "model request timed out") from exc
+        except ConnectionError as exc:
+            if local:
+                raise AgentRuntimeError(
+                    ErrorCode.LOCAL_AI_UNAVAILABLE, "local provider is not reachable"
+                ) from exc
+            raise _model_request_failed(exc) from exc
         except Exception as exc:  # noqa: BLE001 - never surface vendor detail or credentials
-            # Safe diagnostic only: the exception *class* (never its message) is
-            # attached so the runtime can persist a classification without leaking.
-            error = AgentRuntimeError(ErrorCode.MODEL_REQUEST_FAILED, "model request failed")
-            error.detail = type(exc).__name__  # type: ignore[attr-defined]
-            raise error from exc
+            raise _model_request_failed(exc) from exc
 
         self._record(
             correlation=correlation,

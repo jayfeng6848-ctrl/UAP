@@ -55,8 +55,11 @@ EXPECTED_TABLES = {
     "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
     # P09 (0011) delivered the agent / tool-permission tables
     "agents", "agent_versions", "agent_permissions", "tool_executions",
+    # P10 (0013) delivered the event / audit carriers (both partition parents)
+    "events", "audit_logs",
 }
 AI_PARTITION_PREFIX = "ai_request_logs_"
+PARTITION_PREFIXES = ("ai_request_logs_", "events_", "audit_logs_")
 
 
 def _actual_tables() -> set[str]:
@@ -66,12 +69,13 @@ def _actual_tables() -> set[str]:
 
 
 def _expected_tables() -> set[str]:
-    """EXPECTED_TABLES + 实际存在的 ai_request_logs 子分区（分区名含 UTC 月份 ⇒ 动态）。"""
-    return EXPECTED_TABLES | {t for t in _actual_tables() if t.startswith(AI_PARTITION_PREFIX)}
+    """EXPECTED_TABLES + 实际存在的当月子分区（分区名含 UTC 月份 ⇒ 动态并入）。"""
+    return EXPECTED_TABLES | {t for t in _actual_tables()
+                              if t.startswith(PARTITION_PREFIXES)}
 FORBIDDEN = {
     "resource_relations",
-    # P09 tables were delivered by 0011 (no longer forbidden)
-    "events", "audit_logs", "groups",
+    # P09 tables were delivered by 0011; P10 delivered events/audit_logs
+    "groups",
 }
 
 
@@ -79,7 +83,7 @@ FORBIDDEN = {
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     yield
     reset_test_database()
 
@@ -121,9 +125,12 @@ def test_exact_table_count_and_no_forbidden_tables(db) -> None:
     assert tables == expected, f"unexpected: {tables - expected} / missing: {expected - tables}"
     assert tables.isdisjoint(FORBIDDEN)
     # P08 分区表：恰好一个当月子分区，命名符合 ai_request_logs_<YYYYMM>（DC-1 = A FROZEN）
-    partitions = {t for t in tables if t.startswith(AI_PARTITION_PREFIX)}
-    assert len(partitions) == 1, sorted(partitions)
-    assert re.fullmatch(r"ai_request_logs_\d{6}", next(iter(partitions)))
+    partitions = {t for t in tables if t.startswith(PARTITION_PREFIXES)}
+    assert len(partitions) == 3, sorted(partitions)
+    for prefix in PARTITION_PREFIXES:
+        kids = {t for t in partitions if t.startswith(prefix)}
+        assert len(kids) == 1, sorted(kids)
+        assert re.fullmatch(re.escape(prefix) + r"\d{6}", next(iter(kids)))
 
 
 # ================================================================= tenants

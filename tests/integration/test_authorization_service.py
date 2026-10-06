@@ -39,7 +39,7 @@ if not database_reachable():
 def env():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     engine = sa.create_engine(BASE_DSN)
     ids = _seed(engine)
     yield engine, ids

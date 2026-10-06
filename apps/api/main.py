@@ -13,7 +13,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from apps.api.routes.devices import router as devices_router
+from apps.api.routes.ai import router as ai_router
+from apps.api.routes.intelligence import router as intelligence_router
 from apps.api.routes.agent_runs import router as agent_runs_router
+from apps.api.routes.company import router as company_router
 from apps.api.routes.control_plane import router as control_plane_router
 from apps.api.routes.health import router as health_router
 from apps.api.routes.identity import router as identity_router
@@ -122,6 +125,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sessions_router)
     app.include_router(agent_runs_router)
     app.include_router(control_plane_router)
+    app.include_router(company_router)
+    app.include_router(ai_router)
+    app.include_router(intelligence_router)
     return app
 
 

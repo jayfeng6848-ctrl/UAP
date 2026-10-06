@@ -81,3 +81,26 @@ Status: **PREP ONLY**
 
 ### R4 注记（2026-09-08 D-07 Hardening — 无新增索引）
 - PMB-1..4 不需要新索引：effective 计数/持有者查询由既有 `uq_platform_memberships_active_user` + `ix_platform_memberships_role_status` 覆盖；re-grant 复用 `uq_platform_memberships_user_role`（UPDATE 同 id，无新查找路径）。
+
+---
+
+## R5 append-only clarification（2026-09-25 · P12 Decision Freeze 追加）
+
+> **追加澄清，不改写上文**。目的：使本文档中的设计名与**实现层 canonical 名**跨文档可见（`CF-3` ⇒ CLARIFIED）。
+
+本文 §3、§4、§5 记载 `ix_rp_permission ON (permission_id)`（on `role_permissions`）与 `ix_tm_role ON tenant_memberships(role_id)`。
+**两者均已在 `0005_b1_3_authorization.py` 落地**，但**实现层名称为**：
+
+```text
+设计名（本文档）        ix_rp_permission                    ix_tm_role
+实现层 canonical 名     ix_role_permissions_permission       ix_tenant_memberships_role
+出处                    0005_b1_3_authorization.py:386      0005_b1_3_authorization.py:438
+```
+
+⇒ 引用"已实现索引"时**一律使用 canonical 实现名**；设计名**仅作历史命名记录**，**非**独立对象。
+**P12 不 rename**（`D-P12-12`）。
+另：`B1-6_DECISION_LOG.md:331` 称 P3 候选「全部未在 0003–0008 落地」——其中 `ix_rp_permission`
+**实已以 `ix_role_permissions_permission` 落地**；该陈旧陈述由 `PLATFORM_DECISION_LOG.md` 附录 **I.7** 登记为
+`CF-3 = CLARIFIED`（历史正文不改写）。
+
+**END OF STEP1B_B1_3_INDEX_STRATEGY（2026-09-25 · append-only clarification）**

@@ -56,6 +56,28 @@ core ─▶ domains  (FORBIDDEN)
 | audit      | Append-only audit for security, agent and tool actions |
 | resource   | Generic resource identity, ownership and scope        |
 
+## Event delivery boundary
+
+`EventBus != Outbox` — they are **not** the same delivery mechanism and must never be
+described as one (frozen by `D-P10-02`, clarification `C-3`).
+
+```text
+Outbox (`events` table) = durable / reliable event delivery authority
+                          CAS claim + lease 60s + Reaper; at-least-once;
+                          consumer idempotent by `event_id`
+
+EventBus                = optional in-process auxiliary mechanism, and
+                          MUST NOT replace outbox persistence
+                          MUST NOT be treated as the durable delivery boundary
+                          MUST NOT become the canonical cross-process delivery mechanism
+```
+
+- Domain event identity is **UUIDv7 canonical** (`D-P10-02`).
+- `audit_logs` is immutable, and **audit-local immutability is owned by P10**
+  (`tg_audit_immutable`), not deferred to P11 (`D-P10-11`, `C-4`).
+- Authoritative decisions: `D-P10-01`…`D-P10-18` in
+  [`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md) (appendix G).
+
 ## Agent execution boundary
 
 ```text
@@ -100,10 +122,56 @@ Frozen properties:
 - `Authorization Decision Audit` is a **different record** from
   `Tool Execution Audit` (`D-AUTH-15`).
 
-> Status: **design frozen — not implemented**. No authorization code, service or
-> schema exists yet and `services/` has not been created. See
-> [`AUTHORIZATION_PREP_REPORT.md`](./AUTHORIZATION_PREP_REPORT.md) and
+> Status: **implemented and accepted**. Contracts live in `core/permission` /
+> `core/policy` / `core/resource` / `core/audit`; the deciding service is
+> `services/authorization/` — the **first package under `services/`** — and
+> migration `0012_authz_enforcement` adds the canonical-action and scope CHECK
+> constraints. Landed in commit `034ee97`, tag `UAP-V0.1.8-AUTHORIZATION`.
+> See [`AUTHORIZATION_PREP_REPORT.md`](./AUTHORIZATION_PREP_REPORT.md) ·
+> [`AUTHORIZATION_IMPLEMENTATION_CONTRACT.md`](./AUTHORIZATION_IMPLEMENTATION_CONTRACT.md) ·
 > [`AUTHORIZATION_ACCEPTANCE_MATRIX.md`](./AUTHORIZATION_ACCEPTANCE_MATRIX.md).
+
+## Agent runtime (design frozen)
+
+Run semantics are frozen by `D-AGENT-01`…`D-AGENT-16`
+([`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md)); the contract lives in
+[`AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md`](./AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md).
+
+```text
+POST /agent-runs · GET /agent-runs/{id} · POST /agent-runs/{id}/cancel
+       │
+  AgentRun — one model · one state machine · one authorization model · one audit model
+       │            sync fast path          |          async long path
+       ▼
+  Executor abstraction ──▶ future worker (MUST consume AgentRun, never a second engine)
+```
+
+Frozen properties:
+
+- **One Run model, two presentations** — sync and async are *not* two runtimes
+  (`D-AGENT-01`); `AgentRun` is a first-class persisted object (`D-AGENT-02`).
+- **Eight-state machine** (`CREATED`/`RUNNING`/`WAITING`/`WAITING_APPROVAL`/
+  `COMPLETED`/`FAILED`/`CANCELLED`/`TIMEOUT`), table-driven; an invalid transition
+  is rejected and **fails closed** (`D-AGENT-05`).
+- **Context** is eight authorized, bounded and traceable layers; the snapshot is
+  immutable, and lazy retrieval **must re-pass** authorization / policy / boundary
+  checks (`D-AGENT-04`).
+- **`LLM plan ≠ execution authority`** — every action proposal goes through
+  Authorization → Policy → Approval → Tool (`D-AGENT-03`, inheriting `D-AUTH-09`).
+- **Tool limits** = `min(platform, tenant, agent)`; a missing layer **inherits**
+  the upper bound and is never read as "unlimited" (`D-AGENT-09`).
+- **Dual-level idempotency** (run + tool action) **plus** resource-version /
+  conditional update for actions at real conflict risk — idempotency alone does
+  not close every race (`D-AGENT-06`, `D-AGENT-08`).
+- **Cancellation is explicit**; client disconnect is never a cancellation, and a
+  cancel request never rolls back an external side effect (`D-AGENT-07`).
+- **No vendor SDK in the runtime**: `Runtime → AI Gateway Contract → Gateway
+  Runtime → Provider Adapter` (`D-AGENT-16`).
+
+> Status: **design frozen — not implemented**. No runtime code, package or table
+> exists; `agent_runs` / `agent_run_steps` are **design only**. Implementation is
+> **BLOCKED** until `P10 ∧ P11 ∧ P12 ∧ P13 ∧ AI Gateway Runtime` are ready —
+> `D-PLAT-09` route A, **not superseded**.
 
 ## Data
 

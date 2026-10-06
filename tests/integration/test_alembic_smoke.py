@@ -50,7 +50,7 @@ def _engine():
 def test_upgrade_head_reaches_infrastructure(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
 
 
 def test_no_business_table_created(empty_db) -> None:
@@ -76,9 +76,11 @@ def test_no_business_table_created(empty_db) -> None:
     #          + 3 tool tables (tools/tool_versions/tool_permissions)
     #          + 5 AI gateway tables (ai_providers/ai_models/ai_routes/ai_policies/ai_request_logs)
     #          + 4 P09 tables (agents/agent_versions/agent_permissions/tool_executions)
-    #          + 1 当月子分区 ai_request_logs_<YYYYMM>（UTC calendar month）
+    #          + 2 P10 tables (events / audit_logs) —— 均分区父表
+    #          + 3 当月子分区 <parent>_<YYYYMM>（UTC calendar month）:
+    #            ai_request_logs_* / events_* / audit_logs_*
     #          + alembic version.
-    # NO other core/business tables (agents/events/tool_executions/... yet).
+    # NO other core/business tables.
     static = sorted(
         [
             "alembic_version",
@@ -90,12 +92,17 @@ def test_no_business_table_created(empty_db) -> None:
             "tools", "tool_versions", "tool_permissions",
             "ai_providers", "ai_models", "ai_routes", "ai_policies", "ai_request_logs",
             "agents", "agent_versions", "agent_permissions", "tool_executions",
+            "events", "audit_logs",
         ]
     )
-    partitions = sorted(t for t in tables if t.startswith("ai_request_logs_"))
-    assert len(partitions) == 1, f"expected exactly one current-month partition, got {partitions}"
-    assert re.fullmatch(r"ai_request_logs_\d{6}", partitions[0]), partitions[0]
-    assert sorted(t for t in tables if not t.startswith("ai_request_logs_")) == static, (
+    # 子分区名含 UTC 月份 ⇒ **不可硬编码**；按父表逐族断言"恰好 1 个当月子分区"。
+    families = ("ai_request_logs_", "events_", "audit_logs_")
+    for prefix in families:
+        kids = sorted(t for t in tables if t.startswith(prefix))
+        assert len(kids) == 1, f"expected exactly one current-month {prefix}* partition, got {kids}"
+        assert re.fullmatch(re.escape(prefix) + r"\d{6}", kids[0]), kids[0]
+    assert sorted(t for t in tables
+                  if not any(t.startswith(p) for p in families)) == static, (
         f"unexpected tables: {tables}"
     )
 
@@ -169,11 +176,11 @@ def test_downgrade_base_is_reversible(empty_db) -> None:
     assert set(tables).issubset({"alembic_version"}), f"unexpected tables: {tables}"
     # And from this state a fresh upgrade works again (round trip).
     upgrade(cfg, "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
 
 
 def test_upgrade_rerun_idempotent(empty_db) -> None:
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
     upgrade(cfg, "head")  # second run is a no-op but must still succeed
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"

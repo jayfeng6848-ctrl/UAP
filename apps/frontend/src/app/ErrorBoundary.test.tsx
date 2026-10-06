@@ -26,7 +26,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('The console hit an unexpected error.');
+    expect(screen.getByRole('alert')).toHaveTextContent('UAP 遇到了一个意外问题。');
     expect(screen.queryByText(/postgres:\/\//)).not.toBeInTheDocument();
     expect(screen.queryByText(/company_employees/)).not.toBeInTheDocument();
   });
@@ -38,7 +38,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
   });
 
   it('renders children when no error occurs', () => {

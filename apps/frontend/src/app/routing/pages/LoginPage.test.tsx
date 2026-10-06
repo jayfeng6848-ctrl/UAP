@@ -60,12 +60,12 @@ function renderLogin(client: ApiClient) {
 
 async function fillForm(deviceId: string) {
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText('Login'), 'ada@example.invalid');
-  await user.type(screen.getByLabelText('Password'), 'correct-horse');
+  await user.type(screen.getByLabelText('账号'), 'ada@example.invalid');
+  await user.type(screen.getByLabelText('密码'), 'correct-horse');
   if (deviceId.length > 0) {
-    await user.type(screen.getByLabelText('Device ID'), deviceId);
+    await user.type(screen.getByLabelText('设备 ID'), deviceId);
   }
-  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+  await user.click(screen.getByRole('button', { name: '登录' }));
 }
 
 beforeEach(() => {
@@ -77,12 +77,12 @@ describe('LoginPage — device correction (P21-RUT-03)', () => {
   it('exposes an ordinary Device ID input next to account and password', () => {
     renderLogin(makeStubClient().client);
 
-    expect(screen.getByLabelText('Login')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password');
-    const device = screen.getByLabelText('Device ID');
+    expect(screen.getByLabelText('账号')).toBeInTheDocument();
+    expect(screen.getByLabelText('密码')).toHaveAttribute('type', 'password');
+    const device = screen.getByLabelText('设备 ID');
     expect(device).toBeInTheDocument();
     expect(device).toHaveAttribute('type', 'text');
-    expect(screen.getByText(/already enrolled for this account/i)).toBeInTheDocument();
+    expect(screen.getByText(/已经为该账号注册的设备 ID/)).toBeInTheDocument();
   });
 
   it('passes the entered Device ID into the existing session request', async () => {
@@ -108,7 +108,7 @@ describe('LoginPage — device correction (P21-RUT-03)', () => {
 
     await fillForm('');
 
-    expect(await screen.findByText('Device ID is required.')).toBeInTheDocument();
+    expect(await screen.findByText('请输入设备 ID。')).toBeInTheDocument();
     expect(stub.post).not.toHaveBeenCalled();
   });
 
@@ -125,8 +125,8 @@ describe('LoginPage — device correction (P21-RUT-03)', () => {
 
     await fillForm('00000000-0000-7000-8000-000000000000');
 
-    expect(await screen.findByText(/this device is not enrolled/i)).toBeInTheDocument();
-    expect(screen.queryByText(/sign-in failed/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/这台设备尚未注册/)).toBeInTheDocument();
+    expect(screen.queryByText(/登录失败/)).not.toBeInTheDocument();
     expect(stub.get).not.toHaveBeenCalled();
   });
 
@@ -171,7 +171,7 @@ describe('LoginPage — device correction (P21-RUT-03)', () => {
 
     await fillForm(DEVICE_ID);
 
-    expect(await screen.findByText(/sign-in failed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/登录失败/)).toBeInTheDocument();
     expect(stub.get).not.toHaveBeenCalled();
   });
 });

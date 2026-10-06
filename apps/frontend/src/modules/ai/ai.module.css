@@ -1,0 +1,15 @@
+.section { display: flex; flex-direction: column; gap: 1rem; }
+.actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem; }
+.muted { color: #666; font-size: 0.9rem; }
+.provider { display: flex; gap: 0.75rem; align-items: baseline; margin: 0; }
+.keyRow { display: flex; gap: 0.5rem; align-items: center; }
+.success { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+.successMark { font-size: 1.1rem; font-weight: 600; margin: 0; }
+.advanced { margin-top: 1rem; font-size: 0.9rem; }
+.detailList { list-style: none; padding-left: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.status { margin: 0.25rem 0 0.5rem; color: #444; font-size: 0.9rem; }
+.providerGrid { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+.providerCard { display: flex; flex-direction: column; gap: 0.2rem; text-align: left; padding: 0.6rem 0.8rem; min-width: 150px; border: 1px solid var(--uap-color-border); border-radius: var(--uap-radius-md); background: var(--uap-color-surface); cursor: pointer; font: inherit; color: inherit; }
+.providerCardActive { display: flex; flex-direction: column; gap: 0.2rem; text-align: left; padding: 0.6rem 0.8rem; min-width: 150px; border: 2px solid var(--uap-color-accent); border-radius: var(--uap-radius-md); background: var(--uap-color-surface-muted); cursor: pointer; font: inherit; color: inherit; }
+.modelList { display: flex; flex-direction: column; gap: 0.35rem; }
+.modelRow { display: flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.5rem; border: 1px solid var(--uap-color-border); border-radius: var(--uap-radius-md); cursor: pointer; }

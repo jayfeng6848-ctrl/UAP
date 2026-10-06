@@ -20,7 +20,7 @@ import pytest
 generator = importlib.import_module("scripts.generate_build_info")
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-REV = "0012_authz_enforcement"
+REV = "0015_p12_indexes"
 
 
 @pytest.fixture(autouse=True)

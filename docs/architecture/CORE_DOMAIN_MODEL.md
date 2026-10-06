@@ -261,6 +261,16 @@ Version: `0.1.0-design` · Target: PostgreSQL 16+
 | 验证 | **BEFORE INSERT/UPDATE trigger** 校验 `subject_id` 在 `acl_subject_types.key` 对应的表中存在：<br>· `key='user'` → `users.id`（不限制 `status`；软删用户保留历史 ACL）<br>· `key='role'` → `roles.id`（不限制 `archived_at`）<br>· `key='agent'` → `agents.id`（不限制 `archived_at`）<br>任何不在注册表中的 key → 拒绝写入。<br>**P2-02：STEP 1-B 不注册 `group`，trigger 也不引用不存在的 `groups` 表**。未来启用路径：CREATE groups → 注册 group subject type → 增加 group validation 分支 → 增加 ACL group 测试（见 STEP1A_ARCHITECTURE_REVIEW Round 3） |
 | User 删除 | 软删：保留 ACL（用户历史行为可能引用）；硬删：trigger 级联清理 `resource_permissions` 中 subject_id=该 user 的行 |
 | Role 删除 | FK `ON DELETE RESTRICT`：被 ACL 引用的 role 不可删；归档 role（`archived_at`）时由 trigger 写 audit 并在授权决策时跳过已归档 role 的 deny 行（但仍能 match allow 用于审计追溯） |
+
+> **[`D-P11-14` 注记 · 2026-09-25]**（**append-only clarification** · 遵 `PLATFORM_DECISION_LOG.md` Charter §5.2）
+> 上表「Role 删除」行中的「归档 role（`archived_at`）时**由 trigger 写 audit**」**不是 P11 实施要求**，
+> 且与触发器本体论冲突（`B1-4_DEPENDENCY.md:103` 已将其登记为 **P3 文档不一致**）。
+> **正式保持：`trigger does NOT write audit`。** Audit persistence **属于 `P10` Event / Audit layer**
+> （`D-P10-01`…`D-P10-18`）；本行的「跳过已归档 role 的 deny 行」部分由 **Authorization Layer** 承担
+> （`B1-4_SCHEMA_DESIGN.md:136`），亦非 trigger 职责。
+> 关联：本文档 §1.3 `roles` 行的「Role 删除」列（被注记内容）· `D-P11-14` · `CF-2`。
+> 性质：**追加说明（append-only clarification）**。**不改写本表既有行、不修改任何结论、不产生 supersession。**
+> **P11 不新增** `role archive audit trigger` / `ACL audit-writing trigger`（`D-P11-14`）。
 | Membership removed | **不预先清理 ACL**：`memberships.removed_at` 触发的授权决策失败记 `audit_logs(result='denied', reason='membership_removed')`；ACL 本身在成员重新加入时自动恢复有效 |
 | Agent 删除 | agent 归档：trigger 标记该 agent 的所有 ACL 为 `inherited=true, expires_at=now()`（临时）使历史 ACL 自然到期，避免悬空引用 |
 | 设计原则 | **不**为每个 subject_type 单独建子表 —— 触发器校验 + 注册表白名单已在工程上等价于强引用；引入专用子表会大幅增加 JOIN 与写入复杂度，而 ACL 评估主要按 `resource_id` 走，subject 反查频次低 |

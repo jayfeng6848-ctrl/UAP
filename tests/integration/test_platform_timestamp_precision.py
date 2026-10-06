@@ -52,17 +52,18 @@ CORRECTIVE_REVISION = "0009_timestamp_precision"
 PLATFORM_PRECISION = 3
 LEGACY_PRECISION = 6
 
-# Platform scope at P09 (0011_p09_agent_tool_permission).
-#   20 business tables @P07 + 5 AI gateway tables @P08 + 4 P09 tables = 29 business tables
-#   + 1 当月子分区（ai_request_logs_<YYYYMM>，UTC calendar month） = 30 public tables
-#   + alembic_version = 31 physical tables
-BUSINESS_TABLES = 30
-PHYSICAL_TABLES = 31
+# Platform scope at P10 (0013_p10_event_audit).
+#   20 business tables @P07 + 5 AI gateway + 4 P09 = 29 business tables
+#   + 2 P10 tables (events / audit_logs) = 31 business tables
+#   + 3 当月子分区（ai_request_logs_ / events_ / audit_logs_ <YYYYMM>） = 34 public tables
+#   + alembic_version = 35 physical tables
+BUSINESS_TABLES = 34
+PHYSICAL_TABLES = 35
 
 # Current chain head（本文件只断言 head 常量，不假设具体业务阶段）。
-# STAGE 2 (0012_authz_enforcement) 只新增 text 列与 CHECK，**不含任何时间列** ⇒
-# 下方的静态清单不变，覆盖集合仍为 0009 清单 ∪ P08 清单 ∪ P09 清单。
-CURRENT_HEAD = "0012_authz_enforcement"
+# P10 (0013_p10_event_audit) 新增 2 张分区父表 / 8 个 timestamptz(3) 列 ⇒
+# 覆盖集合扩为 0009 清单 ∪ P08 清单 ∪ P09 清单 ∪ P10 清单。
+CURRENT_HEAD = "0015_p12_indexes"
 
 # --------------------------------------------------------------------------- #
 # P08 (0010_b1_6_ai_gateway) timestamp columns — explicit static list.
@@ -95,8 +96,23 @@ P09_TIMESTAMP_COLUMNS: tuple[tuple[str, tuple[str, ...]], ...] = (
 P09_TABLES = 4
 P09_PAIRS = 9
 
-PLATFORM_TABLES = 20 + P08_TABLES + P09_TABLES   # 29 张业务表（含分区父表）
-PLATFORM_PAIRS = 72 + P08_PAIRS + P09_PAIRS      # 91 个时间列（含 1 个分区键）
+# --------------------------------------------------------------------------- #
+# P10 (0013_p10_event_audit) timestamp columns — explicit static list.
+#
+# 这两张表在 0013 中直接以 timestamptz(3) 创建；0009 的清单不因 P10 改变。
+#   events     : created_at + occurred_at（分区键）+ 4 个 outbox 状态列（D-P10-01 一次建齐）
+#   audit_logs : created_at + occurred_at（分区键）；无 updated_at / deleted_at（append-only）
+# --------------------------------------------------------------------------- #
+P10_TIMESTAMP_COLUMNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("events", ("occurred_at", "claimed_at", "lease_expires_at",
+                "next_attempt_at", "delivered_at", "created_at")),
+    ("audit_logs", ("occurred_at", "created_at")),
+)
+P10_TABLES = 2
+P10_PAIRS = 8
+
+PLATFORM_TABLES = 20 + P08_TABLES + P09_TABLES + P10_TABLES   # 31 张业务表（含分区父表）
+PLATFORM_PAIRS = 72 + P08_PAIRS + P09_PAIRS + P10_PAIRS      # 99 个时间列（含 3 个分区键）
 
 
 # --------------------------------------------------------------------------- #
@@ -192,10 +208,10 @@ def test_pg2_all_platform_timestamps_are_precision_3(db) -> None:
 # PG3 — coverage set: 20 tables / 72 columns, matching the migration's static list
 # --------------------------------------------------------------------------- #
 def test_pg3_coverage_matches_migration_static_list(db) -> None:
-    """PG3 — 覆盖集合 = 0009（20 表 / 72 列）∪ P08（5 表 / 10 列）∪ P09（4 表 / 9 列）。
+    """PG3 — 覆盖集合 = 0009（20 表 / 72 列）∪ P08（5/10）∪ P09（4/9）∪ P10（2/8）。
 
-    0009 的清单是 historical migration 的产物，**未因 P08 / P09 改变**；
-    0010 / 0011 新建的时间列在同一 guard 下逐项登记 ⇒ 无遗漏、无多余。
+    0009 的清单是 historical migration 的产物，**未因 P08 / P09 / P10 改变**；
+    0010 / 0011 / 0013 新建的时间列在同一 guard 下逐项登记 ⇒ 无遗漏、无多余。
     """
     module = _migration_module()
     corrective = set(module._pairs())
@@ -217,7 +233,11 @@ def test_pg3_coverage_matches_migration_static_list(db) -> None:
         ("tool_executions", "created_at"),
     }
 
-    expected = corrective | p08 | p09
+    p10 = {(table, column) for table, columns in P10_TIMESTAMP_COLUMNS for column in columns}
+    assert len(P10_TIMESTAMP_COLUMNS) == P10_TABLES, len(P10_TIMESTAMP_COLUMNS)
+    assert len(p10) == P10_PAIRS, len(p10)
+
+    expected = corrective | p08 | p09 | p10
     assert len(expected) == PLATFORM_PAIRS, len(expected)
 
     catalog = {(r[0], r[1]) for r in _platform_timestamps()}
@@ -252,7 +272,7 @@ def test_pg4_corrective_migration_linkage() -> None:
 # PG5 — correction did not add/drop business tables
 # --------------------------------------------------------------------------- #
 def test_pg5_table_count_unchanged(db) -> None:
-    """PG5 — head(=P09) 处表集合与冻结阶段一致：业务表 29 + 1 当月子分区 = 30 / 物理 31。
+    """PG5 — head(=P10) 处表集合与冻结阶段一致：业务表 31 + 3 当月子分区 = 34 / 物理 35。
 
     原断言意图（"0009 未新增表"）由 `PG4` 的链检查与 0010 / 0011 的冻结范围承载；
     此处按当前 head 校准平台表集合（0009 的 corrective 语义未变）。
@@ -296,17 +316,20 @@ def test_pg6_timestamp_dependent_objects_survive(db) -> None:
         "SELECT count(*) FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid "
         "WHERE NOT t.tgisinternal AND p.proname = 'set_updated_at'"
     ) == 19
-    # UAP trigger 总数：27 @P07 + 4 @P08 + 3 @P09 = 34
+    # UAP trigger 总数：27 @P07 + 4 @P08 + 3 @P09 + 2 @P10 + 4 @P11 = 40。
+    # P10 的 tg_audit_immutable 建在**分区父表**上，PG 会为子分区克隆一行
+    # （tgparentid 指向父触发器），故 P10 计 2 而非 1；P11 的 4 个触发器
+    # 均在非分区表上 ⇒ 无克隆行。
     assert _scalar(
         "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
         "JOIN pg_namespace n ON n.oid = c.relnamespace "
         "WHERE NOT t.tgisinternal AND n.nspname = 'public'"
-    ) == 34
-    # 时间列上的 now() 默认：34 @P07 + 9 @P08 + 5 @P09（agents×2 / agent_versions×1 /
-    # agent_permissions×1 / tool_executions×1）= 48
+    ) == 40
+    # 时间列上的 now() 默认：34 @P07 + 9 @P08 + 5 @P09 + 1 @P10（events.created_at；
+    # audit_logs.created_at 按契约不加 server default）= 49
     assert _scalar(
         "SELECT count(*) " + _TS_SCAN + "AND c.column_default = 'now()'"
-    ) == 48
+    ) == 49
 
 
 # --------------------------------------------------------------------------- #

@@ -69,3 +69,24 @@ Status: **PREP ONLY**
 | jsonb GIN（settings） | **不建**（无过滤查询需求） |
 | 外键列一律建索引 | 只建**需要反查**者（ix_tm_user / ix_memberships_tenant_user / FUTURE role 索引）；tenant_id/space_id 已被 UQ 前缀覆盖 |
 | 重复前缀索引 | `ix_spaces_tenant_status` 与 `uq_spaces_key` 共享 tenant 前缀但谓词不同（status vs key）→ 服务不同查询，非冗余 |
+
+---
+
+## R5 append-only clarification（2026-09-25 · P12 Decision Freeze 追加）
+
+> **追加澄清，不改写上文**。目的：使本文档中的设计名与**实现层 canonical 名**跨文档可见（`CF-3` ⇒ CLARIFIED）。
+
+本文 §3 与 §5 记载 `ix_tm_role ON (role_id)`，并标为 **FUTURE（随 role FK 一起建）**。
+**实现层已落地**（`0005_b1_3_authorization.py`），**canonical 名称 = `ix_tenant_memberships_role`**：
+
+```text
+设计名（本文档）        ix_tm_role
+实现层 canonical 名     ix_tenant_memberships_role
+出处                    0005_b1_3_authorization.py:438（同一对象，非两个索引）
+```
+
+⇒ 引用"已实现索引"时**一律使用 `ix_tenant_memberships_role`**；`ix_tm_role` **仅作历史命名记录**。
+**P12 不 rename**（`D-P12-12`）。另：§5 的 FUTURE 标记已在 `0005` 被兑现（同 revision 亦落地
+`ix_memberships_role`），本文档保留该 PREP 时点的表述不改写。
+
+**END OF STEP1B_B1_2_INDEX_STRATEGY（2026-09-25 · append-only clarification）**

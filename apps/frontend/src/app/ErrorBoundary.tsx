@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       return (
         <GlobalError
-          message="The console hit an unexpected error."
+          message="UAP 遇到了一个意外问题。"
           onRetry={() => {
             this.setState({ hasError: false });
           }}

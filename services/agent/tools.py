@@ -17,6 +17,13 @@ from core.agent import AgentRuntimeError, ErrorCode
 
 HandlerFn = Callable[[Mapping[str, Any], ToolContext], ToolResult]
 
+#: The read-only Company qualification tool (HD-P21-14 §8). Its scope is always
+#: taken from the runtime ``ToolContext`` — never from the model's parameters.
+COMPANY_EMPLOYEE_LIST_KEY = "company.employee_list"
+COMPANY_EMPLOYEE_STATUSES = ("active", "suspended", "terminated")
+COMPANY_EMPLOYEE_MAX_LIMIT = 100
+COMPANY_EMPLOYEE_DEFAULT_LIMIT = 25
+
 
 @dataclass(frozen=True)
 class ToolHandler:
@@ -87,7 +94,108 @@ def _clock_now(params: Mapping[str, Any], context: ToolContext) -> ToolResult:
     )
 
 
-def register_builtin_tools(registry: ToolRegistry) -> ToolRegistry:
-    """The only tools P16 ships: LOW risk, deterministic, side-effect free."""
+def _make_company_employee_list(company_db: Any) -> HandlerFn:
+    """Bind one read-only Company employee reader to a runtime database.
+
+    Read-only by construction: the handler can only call
+    ``services.company.use_cases.list_employees``, which runs the canonical
+    ``AuthorizationService`` check (action ``list`` on ``company_employee``) and
+    raises a :class:`CompanyError` when the caller is not allowed. The tenant and
+    the actor come from the runtime ``ToolContext``; parameters may only filter.
+    """
+    from services.company.errors import CompanyError, ErrorCode as CompanyErrorCode
+    from services.company.use_cases import list_employees
+
+    def _company_employee_list(params: Mapping[str, Any], context: ToolContext) -> ToolResult:
+        allowed_params = {"status", "limit", "search"}
+        if set(params) - allowed_params:
+            return ToolResult(ok=False, error="unsupported_parameter")
+
+        status = params.get("status")
+        if status is not None and (
+            not isinstance(status, str) or status not in COMPANY_EMPLOYEE_STATUSES
+        ):
+            return ToolResult(ok=False, error="invalid_status")
+
+        raw_limit = params.get("limit", COMPANY_EMPLOYEE_DEFAULT_LIMIT)
+        if not isinstance(raw_limit, int) or isinstance(raw_limit, bool):
+            return ToolResult(ok=False, error="invalid_limit")
+        limit = max(1, min(int(raw_limit), COMPANY_EMPLOYEE_MAX_LIMIT))
+
+        search = params.get("search")
+        if search is not None and not isinstance(search, str):
+            return ToolResult(ok=False, error="invalid_search")
+        # A search must look at the whole authorized collection, not just the first
+        # page, otherwise a name that sorts later would be silently missed. The read
+        # stays bounded by the same hard cap.
+        fetch_limit = COMPANY_EMPLOYEE_MAX_LIMIT if isinstance(search, str) and search.strip() else limit
+
+        try:
+            # tenant_id / actor_id are session-derived (ToolContext), never prompt-derived.
+            rows = list_employees(
+                company_db,
+                actor_id=context.actor_id,
+                tenant_id=context.tenant_id,
+                status=status,
+                limit=fetch_limit,
+            )
+        except CompanyError as exc:
+            if exc.code in (
+                CompanyErrorCode.AUTHORIZATION_DENIED,
+                CompanyErrorCode.RESOURCE_NOT_PROVISIONED,
+                CompanyErrorCode.TENANT_NOT_ACTIVE,
+            ):
+                return ToolResult(ok=False, error="not_authorized")
+            return ToolResult(ok=False, error="company_read_failed")
+        except Exception:  # noqa: BLE001 - fail closed, never leak internals
+            return ToolResult(ok=False, error="company_read_failed")
+
+        items = [
+            {
+                "employee_id": employee.id,
+                "employee_no": employee.employee_no,
+                "display_name": employee.display_name,
+                "title": employee.title,
+                "status": employee.status,
+                "hired_at": employee.hired_at.isoformat() if employee.hired_at else None,
+            }
+            for employee in rows
+        ]
+        if isinstance(search, str) and search.strip():
+            needle = search.strip().lower()
+            items = [
+                item
+                for item in items
+                if needle in str(item["display_name"]).lower()
+                or needle in str(item["employee_no"]).lower()
+            ]
+        items.sort(key=lambda item: str(item["display_name"]))
+        items = items[:limit]
+
+        return ToolResult(
+            ok=True,
+            data={
+                "items": items,
+                "count": len(items),
+                "tenant_id": context.tenant_id,
+                "status_filter": status,
+                "read_only": True,
+            },
+        )
+
+    return _company_employee_list
+
+
+def register_builtin_tools(registry: ToolRegistry, *, company_db: Any | None = None) -> ToolRegistry:
+    """Built-in tools: LOW risk, deterministic, side-effect free.
+
+    ``platform.clock.now`` is always present. The read-only Company qualification
+    tool (``company.employee_list``) is registered only when a runtime database is
+    supplied, so existing callers keep the exact previous behaviour.
+    """
     registry.register(ToolHandler(key="platform.clock.now", fn=_clock_now))
+    if company_db is not None:
+        registry.register(
+            ToolHandler(key=COMPANY_EMPLOYEE_LIST_KEY, fn=_make_company_employee_list(company_db))
+        )
     return registry

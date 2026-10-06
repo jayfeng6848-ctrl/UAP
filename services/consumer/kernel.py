@@ -15,6 +15,7 @@ Frozen inputs (PDL Appendix S):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any, Callable
 
 MAX_ATTEMPTS = 10
 BACKOFF_BASE_SECONDS = 5
@@ -84,6 +85,10 @@ class EventHandlerSpec:
     has_authorization_semantics: bool
     has_acceptance_coverage: bool
     idempotency: str
+    #: HD-Q-01 — explicit handler callable binding (trusted code registration only).
+    #: ``None`` keeps the frozen ``handler_not_bound`` terminal behaviour; the value
+    #: may never come from an event payload, a module path or any dynamic import.
+    handler: Callable[[Any], None] | None = None
 
     @property
     def eligible(self) -> bool:

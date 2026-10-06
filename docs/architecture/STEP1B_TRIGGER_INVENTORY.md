@@ -223,3 +223,33 @@ events 的 claim 状态迁移由**应用层 CAS UPDATE 完成**，不加 trigger
   既有相位顺序亦未重排。C2 与 C **同族**（受保护行不可被运行期改写/删除），但**边界不同**：C2 = **registry governance only**，
   不做 authorization evaluation，**不替换** G/H/I/J 的主体存在性校验。
 - application-layer 行为（设备 revoked 级联会话、events CAS claim）**不落 DB trigger**（设计文档明确应用层实现，避免跨表 trigger 复杂度）
+
+---
+
+## 4. 后续注记（**append-only** · 遵 `PLATFORM_DECISION_LOG.md` Charter §5.2）
+
+> **[`D-P11-13` 注记 · 2026-09-25]** **`GAP-INV-1` = supplementary inventory gap**：
+> 本清单（A–M）**成文早于 `0005` / `0006` / `0011`**，故下列 **6 个已实现**的 trigger **不在** A–M letter 清单内：
+> `tg_pm_role_scope` · `tg_pm_last_admin` · `tg_roles_pm_lifecycle` · `tg_platform_state_guard` ·
+> `tg_pm_bootstrap_gate` · `tg_agents_tenant_space_consistency`。
+> 关联：本文档 §2 汇总表（被注记内容 = A–M 清单的**完整性**范围）· `P11_PREP_REPORT.md` §4.3。
+> 性质：**追加说明（append-only）。不修改本清单既有 letter 编号、表格行或结论。**
+>
+> **正式裁定（`D-P11-13`）**：**DO NOT** renumber A–M · **DO NOT** insert new letters ·
+> **DO NOT** move them into G/H/I/J · **DO NOT** reclassify them as P11 delivery。
+> `GAP-INV-1` 的含义 = **`historical inventory completeness issue`**，**而非** `missing implementation`
+> —— 上述对象**已真实存在并已属于既有阶段**。
+
+> **[`D-P11-13` 注记 · 2026-09-25]** **H / I 的「P09 后」定性**：
+> 正式表述为 **`P09-after is an explicit phase freeze, not a dependency-derived conclusion`**。
+> 关联：本文档 §2 汇总表 G/H/I/J 行的「最早 phase」列（= `P09 后`）· §3 一致性检查中
+> 「G/H/I/J … 均在 P09 后建」的概括表述 · `B1-4_DEPENDENCY.md:74-76`（原文级结论：H/I 的 `dependency`
+> 字段**不含 `agents`**；以"依赖 agents"概括四项**对 H/I 理由不充分**）。
+> 性质：**追加说明（append-only）。不修改本清单既有行与数值，不重排 H/I。**
+>
+> **正式裁定（`D-P11-13` / `D-P11-01`）**：H/I 的相位**不得据此重排**；G/H/I/J 的 P11 归属**不变**。
+
+> **[`D-P11-01` 注记 · 2026-09-25]** **P11 canonical delivery scope = G / H / I / J**；
+> `A / B / C / C2 / D / E / F / F2 / K` = **已有阶段实现**（不得重建或复制）· `L` = **P10-owned**
+> （`D-P11-10`，**OUT OF P11**）· `M` = **events 无 DB trigger**。
+> 关联：本文档 §2 汇总表全表。性质：**状态更新 + 交叉引用。不改写既有结论。**

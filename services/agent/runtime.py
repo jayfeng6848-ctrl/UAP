@@ -31,6 +31,8 @@ from infrastructure.logging import get_logger
 
 from services.ai.gateway import AIGatewayService
 from services.ai.credentials import SecretResolver
+from services.ai.local import discover_local_models
+from services.ai.providers import LOCALITY_LOCAL, get_profile, locality_of
 from services.ai.routing import resolve_route
 
 from .repository import AgentRuntimeRepository
@@ -319,20 +321,32 @@ class AgentRuntimeService:
         definition = version.get("definition") or {}
         capability = str(definition.get("capability") or DEFAULT_CAPABILITY)
         classification = str(definition.get("classification") or DEFAULT_CLASSIFICATION)
-        decision = resolve_route(
-            RouteRequest(
-                capability=capability,
-                classification=classification,
-                tenant_id=kw["tenant_id"],
-                space_id=kw["space_id"],
-            ),
-            policies=self._repo.list_policies(session),
-            routes=self._repo.list_routes(session),
-            providers=self._repo.list_providers(session),
-            models=self._repo.list_models(session),
-        )
         providers = {str(p["id"]): p for p in self._repo.list_providers(session)}
         models = {str(m["id"]): m for m in self._repo.list_models(session)}
+        # HD-P21-20 / HD-P21-AI-04: when the customer has an active AI connection the
+        # run uses the provider *and model* they explicitly selected. Without a
+        # connection the deterministic platform route is used, unchanged.
+        selector = getattr(self._credentials, "selected_provider_key", None)
+        preferred = selector() if callable(selector) else None
+        if preferred:
+            provider_row, model_row = self._explicit_target(
+                preferred_provider=str(preferred), providers=providers, models=models
+            )
+        else:
+            decision = resolve_route(
+                RouteRequest(
+                    capability=capability,
+                    classification=classification,
+                    tenant_id=kw["tenant_id"],
+                    space_id=kw["space_id"],
+                ),
+                policies=self._repo.list_policies(session),
+                routes=self._repo.list_routes(session),
+                providers=list(providers.values()),
+                models=list(models.values()),
+            )
+            provider_row = providers[decision.provider_id]
+            model_row = models[decision.model_id]
 
         correlation = {
             "run_id": run_id,
@@ -351,9 +365,16 @@ class AgentRuntimeService:
         )
         call_started = time.monotonic()
         completion = gateway.complete(
-            AIRequest(prompt=kw["input_text"], model=None, parameters={}, tenant_id=kw["tenant_id"]),
-            provider_row=providers[decision.provider_id],
-            model_row=models[decision.model_id],
+            # HD-P21-AI-04 §19: the executed model is the explicitly selected one —
+            # UI selection, connection state and run evidence stay equal.
+            AIRequest(
+                prompt=kw["input_text"],
+                model=str(model_row.get("model_key") or "") or None,
+                parameters={},
+                tenant_id=kw["tenant_id"],
+            ),
+            provider_row=provider_row,
+            model_row=model_row,
             correlation=correlation,
         )
         latency_ms = int((time.monotonic() - call_started) * 1000)
@@ -365,7 +386,7 @@ class AgentRuntimeService:
                 raise AgentRuntimeError(ErrorCode.TOOL_EXECUTION_FAILED, "tool call bound exceeded")
             if time.monotonic() - kw["started"] > self._limits.max_runtime_seconds:
                 raise AgentRuntimeError(ErrorCode.TOOL_TIMEOUT, "run exceeded its duration bound")
-            results.append(self._execute_tool(session, proposal, kw, run_id, decision.capability))
+            results.append(self._execute_tool(session, proposal, kw, run_id, capability))
             tool_calls += 1
 
         result_metadata = {
@@ -398,6 +419,122 @@ class AgentRuntimeService:
             metadata={"outcome": "completed", "reason": "agent-run"},
         )
         return RunOutcome(run_id=run_id, status=RunStatus.COMPLETED.value, result=result_metadata)
+
+    # ------------------------------------------------- explicit model selection
+    def _explicit_target(
+        self,
+        *,
+        preferred_provider: str,
+        providers: Mapping[str, Any],
+        models: Mapping[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Resolve the customer's explicit provider **and** model (HD-P21-AI-04 §5/§10).
+
+        Provider and model are two independent execution facts. A missing model is
+        ``MODEL_UNAVAILABLE`` and a model belonging to a different provider is
+        ``MODEL_PROVIDER_MISMATCH``; neither ever degrades into a silent first-model
+        pick or a silent provider switch.
+        """
+        candidate: dict[str, Any] | None = next(
+            (
+                p
+                for p in providers.values()
+                if str(p.get("key")) == str(preferred_provider) and bool(p.get("enabled"))
+            ),
+            None,
+        )
+        if candidate is None:
+            # A LOCAL provider is a server-side profile, not a database row.
+            candidate = self._local_provider_row(str(preferred_provider))
+        if candidate is None:
+            raise AgentRuntimeError(
+                ErrorCode.PROVIDER_UNAVAILABLE, "selected provider is unavailable"
+            )
+
+        model_selector = getattr(self._credentials, "selected_model_key", None)
+        preferred_model = model_selector() if callable(model_selector) else None
+        if not preferred_model:
+            # §5: a provider-only connection is not a complete customer choice.
+            raise AgentRuntimeError(
+                ErrorCode.MODEL_UNAVAILABLE, "no model selected for this connection"
+            )
+
+        model_row: dict[str, Any] | None = next(
+            (
+                m
+                for m in models.values()
+                if str(m.get("provider_id")) == str(candidate.get("id"))
+                and str(m.get("model_key")) == str(preferred_model)
+                and bool(m.get("enabled"))
+            ),
+            None,
+        )
+        if model_row is None:
+            if locality_of(candidate.get("key")) == LOCALITY_LOCAL:
+                # HD-P21-AI-02: live discovery — not ai_models — is authoritative for
+                # the models actually installed on this runtime host.
+                if str(preferred_model) not in discover_local_models(str(candidate.get("key"))):
+                    raise AgentRuntimeError(
+                        ErrorCode.LOCAL_MODEL_NOT_FOUND, "selected local model is not available"
+                    )
+                # No persistent Local ai_models row (HD-P21-AI-03); id=None keeps
+                # ai_request_logs honest.
+                model_row = {
+                    "id": None,
+                    "provider_id": candidate.get("id"),
+                    "model_key": str(preferred_model),
+                    "capabilities": None,
+                    "context_window": 0,
+                    "max_output_tokens": None,
+                    "max_classification": "HIGHLY_CONFIDENTIAL",
+                    "is_private": True,
+                    "enabled": True,
+                }
+            elif any(
+                # A model that exists under a DIFFERENT provider is a mismatch. A model
+                # that exists under THIS provider but is disabled falls through to
+                # MODEL_UNAVAILABLE — a disabled model is unavailable, not foreign.
+                str(m.get("model_key")) == str(preferred_model)
+                and str(m.get("provider_id")) != str(candidate.get("id"))
+                for m in models.values()
+            ):
+                raise AgentRuntimeError(
+                    ErrorCode.MODEL_PROVIDER_MISMATCH,
+                    "selected model belongs to another provider",
+                )
+            else:
+                raise AgentRuntimeError(
+                    ErrorCode.MODEL_UNAVAILABLE, "selected model is unavailable"
+                )
+        return candidate, model_row
+
+    @staticmethod
+    def _local_provider_row(provider_key: str) -> dict[str, Any] | None:
+        """A LOCAL provider descriptor built from the server-side profile.
+
+        HD-P21-AI-03 forbids persistent Local routing/credential rows, so the
+        descriptor is synthesized: fixed loopback endpoint, no credential, and
+        ``id=None`` so a run log never claims a database provider it does not have.
+        """
+        profile = get_profile(provider_key)
+        if profile is None or profile.locality != LOCALITY_LOCAL:
+            return None
+        return {
+            "id": None,
+            "key": profile.key,
+            "adapter": profile.adapter,
+            "base_url": profile.base_url,
+            "enabled": True,
+            "privacy_tier": "self_hosted",
+            "max_classification": "HIGHLY_CONFIDENTIAL",
+            "capabilities": None,
+            "config": {
+                "mode": profile.mode,
+                "protocol": profile.protocol,
+                "locality": profile.locality,
+            },
+            "secret_ref": None,
+        }
 
     def _execute_tool(
         self,

@@ -15,7 +15,9 @@ import { AssignmentListPage } from './pages/AssignmentListPage';
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage';
 import { EmployeeListPage } from './pages/EmployeeListPage';
 import { CompanyNotFoundPage } from './pages/CompanyNotFoundPage';
+import { CopilotPanel } from './components/CopilotPanel';
 import { OverviewPage } from './pages/OverviewPage';
+import { ReportsPage } from './pages/ReportsPage';
 
 export { companyUiPaths } from './paths';
 
@@ -29,6 +31,10 @@ export function CompanyRouteTree() {
       <Route path="employees/:employee_id" element={<EmployeeDetailPage />} />
       <Route path="assignments" element={<AssignmentListPage />} />
       <Route path="assignments/:assignment_id" element={<AssignmentDetailPage />} />
+      {/* P21 additions (PDL AP · F-2): Reports and the in-workspace AI Copilot.
+          The 11 accepted P20 business routes above are unchanged. */}
+      <Route path="reports" element={<ReportsPage />} />
+      <Route path="copilot" element={<CopilotPanel />} />
       <Route
         path="*"
         element={tenantId === null ? null : <CompanyNotFoundPage tenantId={tenantId} />}

@@ -130,9 +130,51 @@ Rules:
 - Authorization **contracts** stay in `core/`; **implementations** belong in
   `services/` — `core ↛ services` (`G-2`) and `agent ↛ services` (`G-3`) hold.
 
-> Status: **design frozen — not implemented**. This round adds **no new guard**;
-> `G-1`…`G-9` are unchanged. Hardening these rules into guards requires a
-> separate, explicitly authorized change.
+> Status: **implemented and accepted** (commit `034ee97`, tag
+> `UAP-V0.1.8-AUTHORIZATION`). `core/permission` · `core/policy` ·
+> `core/resource` · `core/audit` hold the contracts; `services/authorization/`
+> holds the deciding service (the first package under `services/`). This round
+> adds **no new guard**: `G-1`…`G-9` are unchanged. The rules above are covered
+> by the existing dependency guards (`G-1`…`G-4`) plus `tests/security` and
+> `tests/architecture`.
+
+## 9. Agent runtime boundary (design frozen)
+
+Frozen by `D-AGENT-01`…`D-AGENT-16` —
+[`PLATFORM_DECISION_LOG.md`](./PLATFORM_DECISION_LOG.md) ·
+[`AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md`](./AGENT_RUNTIME_IMPLEMENTATION_CONTRACT.md).
+
+```text
+Agent Runtime ──▶ AI Gateway Contract    ALLOWED   (core contract — D-AGENT-16)
+Agent Runtime ──▶ Authorization Contract ALLOWED   (core contract — D-AUTH-16)
+Agent Runtime ──▶ Tool Contract          ALLOWED
+Agent Runtime ──▶ Executor abstraction   ALLOWED   (D-AGENT-12)
+
+✗ Runtime ──▶ OpenAI / Anthropic / Gemini / other provider SDK
+✗ Runtime ──▶ PostgreSQL direct  (Agent ─▶ Policy ─▶ Tool ─▶ Service ─▶ Database)
+✗ Runtime ──▶ Celery / Redis Queue / RabbitMQ / other concrete worker framework
+✗ core ──▶ services · agent ──▶ services · agent ──▶ infrastructure  (unchanged)
+```
+
+Rules:
+
+- The runtime **never rebuilds provider abstraction**; it binds only to the
+  gateway contract (`D-AGENT-16`).
+- A worker is a **future** addition: it only exists behind the execution
+  abstraction, **must consume the unified `AgentRun`**, and **must re-verify
+  authorization and approval** — an enqueue-time decision is not trusted
+  (`D-AGENT-12`).
+- A **second execution engine must never exist**; a workflow orchestrates by
+  starting `AgentRun`s (`D-AUTH-21`).
+- **No new vendor SDK** may appear in `core/`, `intelligence/`, `agent/` or the
+  runtime (extends rule 3 above).
+
+> Status: **design frozen — not implemented**. **No guard is added this round**;
+> `G-1`…`G-9` unchanged. The runtime guards proposed as **`G-10`…`G-14`**
+> (no provider SDK in the runtime · no DB in `core/agent` · no worker framework ·
+> exhaustive state-machine transitions · error-code set) are recorded in the
+> contract §M.3 and must land **in the implementation commit itself**. A written
+> rule without a test is documentation, not enforcement (see the last section).
 
 ## Carrier faces — five distinct surfaces (`D-P10-17`)
 

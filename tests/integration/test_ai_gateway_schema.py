@@ -67,7 +67,7 @@ if not database_reachable():
 
 REVISION = "0010_b1_6_ai_gateway"
 # 当前链 head（STAGE 2 / 0012）——head 断言用；REVISION 仅用于 B1-6 自身身份校验。
-HEAD_REVISION = "0012_authz_enforcement"
+HEAD_REVISION = "0015_p12_indexes"
 PREVIOUS_REVISION = "0009_timestamp_precision"
 MIGRATION_FILE = ROOT / "migrations_alembic" / "versions" / f"{REVISION}.py"
 PARENT = "ai_request_logs"
@@ -89,8 +89,11 @@ AI_INDEXES = {
     "uq_ai_routes",
     "uq_ai_policies",
     "ix_airl_tenant_occurred",
+    # P12 (0015) 交付（D-P12-13，父表级、自动下推分区）：
+    "ix_airl_provider", "ix_airl_model",          # ai_request_logs
+    "ix_airoutes_primary_model",                  # ai_routes
 }
-# 固定 5 个 ai_* 表上的期望对象（不含分区子表）
+# 固定 5 个 ai_* 表上的期望对象（不含分区子表）：B1-6 五对象 + P12 三对象 = 8
 AI_PK_COLUMNS = {
     "ai_providers": ["id"],
     "ai_models": ["id"],
@@ -141,7 +144,7 @@ AI_NN_COLUMNS = {
 FORBIDDEN_TABLES = {
     # P09 (agents / agent_versions / agent_permissions / tool_executions) was delivered by 0011
     # and is therefore no longer forbidden.
-    "events", "audit_logs", "resource_relations", "groups",
+    "resource_relations", "groups",
 }
 
 P09_TABLES = {"agents", "agent_versions", "agent_permissions", "tool_executions"}
@@ -687,7 +690,7 @@ def test_ax1_ix_airl_tenant_occurred_on_parent(db) -> None:
 
 
 def test_ax2_non_pk_index_set_is_five(db) -> None:
-    """AX2 — 非 PK 索引集合 = 5（含 2 个由 UNIQUE CONSTRAINT 隐式建立）。"""
+    """AX2 — 非 PK 索引集合 = 8（B1-6 五对象【含 2 个 UNIQUE CONSTRAINT 隐式】+ P12 三对象）。"""
     got = {r[0] for r in _rows(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
         "AND tablename = ANY(:t) AND indexname NOT LIKE '%_pkey'", t=list(AI_TABLES),
@@ -866,7 +869,7 @@ def test_ag3_forbidden_sets_synced(db) -> None:
     # 平台 guard 的 head 常量同步
     guard = pathlib.Path("tests/integration/test_platform_timestamp_precision.py").read_text(
         encoding="utf-8")
-    assert 'CURRENT_HEAD = "0012_authz_enforcement"' in guard
+    assert 'CURRENT_HEAD = "0015_p12_indexes"' in guard
 
 
 def test_ag4_repository_safety(db) -> None:
@@ -998,12 +1001,12 @@ def test_am4_roundtrip_object_set_stable(db) -> None:
 
 
 def test_am5_chain_shape() -> None:
-    """AM5 — 链长 = 12（0001…0012）· 唯一 head = 0012 · 无重复/缺失/分支。"""
+    """AM5 — 链长 = 13（0001…0013）· 唯一 head = 0013 · 无重复/缺失/分支。"""
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
     heads = script.get_heads()
     assert heads == [HEAD_REVISION], heads
     revisions = list(script.walk_revisions())
-    assert len(revisions) == 12, [r.revision for r in revisions]
+    assert len(revisions) == 15, [r.revision for r in revisions]
     ids = [r.revision for r in revisions]
     assert len(ids) == len(set(ids))
     assert ids[0] == HEAD_REVISION and ids[-1] == "0001_baseline"
@@ -1013,7 +1016,8 @@ def test_am5_chain_shape() -> None:
     # 属 §24 分类 2「Test Expectation Defect」）
     successor = next(r for r in revisions if r.down_revision == REVISION)
     assert successor.revision == "0011_p09_agent_tool_permission"
-    assert revision.down_revision == "0011_p09_agent_tool_permission"   # 0012 → 0011
+    # head 的直接父节点随链推进：0013 → 0012（不写死更早的编号）
+    assert revision.down_revision == "0014_p11_triggers"               # 0015 → 0014
     parent = next(r for r in revisions if r.revision == REVISION)
     assert parent.down_revision == PREVIOUS_REVISION   # 0010 → 0009
     # Alembic 将未声明值规范化为空 set（等价于 None）；depends_on 由 AM1 的模块级断言覆盖

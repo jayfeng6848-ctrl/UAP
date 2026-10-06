@@ -64,6 +64,7 @@ P09_TRIGGERS = {
     "tg_agents_set_updated_at",
     "tg_agents_tenant_space_consistency",
     "tg_version_immutable",
+    "tg_agent_acl_expire",  # P11 (0014) 交付（D-P11-01）；agents 表上的 AFTER U/D
 }
 P09_FUNCTIONS = {"enforce_agents_tenant_space_consistency", "enforce_agent_versions_immutable"}
 P09_CHECK_CONSTRAINTS = {
@@ -154,7 +155,7 @@ G_H_I_J = {
     "tg_acl_role_delete_block",
     "tg_agent_acl_expire",
 }
-FORBIDDEN_TABLES = {"events", "audit_logs", "groups", "resource_relations"}
+FORBIDDEN_TABLES = {"groups", "resource_relations"}  # P10 交付 events/audit_logs
 
 # 非 published 的夹具状态字面值：ck_agent_versions_status 允许 4 值，draft 属其中，
 # 这里用它表示"尚未发布"（不构成新词表）。
@@ -168,7 +169,7 @@ _FIXTURE_NOT_PUBLISHED = "draft"
 def db():
     reset_test_database()
     upgrade(make_config(lock_mode="fail"), "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     yield
     reset_test_database()
 
@@ -326,7 +327,7 @@ def test_t19_revision_identity() -> None:
     assert 'revision = "0011_p09_agent_tool_permission"' in source
     assert 'down_revision = "0010_b1_6_ai_gateway"' in source
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert script.get_heads() == ["0012_authz_enforcement"]
+    assert script.get_heads() == ["0015_p12_indexes"]
 
 
 def test_t20_tables_exist(db) -> None:
@@ -461,14 +462,24 @@ def test_t23_uq_accounting_constraint_1_index_3(db) -> None:
     assert len(unique_indexes) == 3
 
 
+# P12 (0015) delivered 7 FK reverse-lookup indexes on P09 tables (`D-P12-13`,
+# GUARD-1 removed 5 of these names from T-22's forbidden set).
+P12_P09_TABLE_INDEXES = {
+    "ix_ap_permission", "ix_ap_tool", "ix_ap_version",
+    "ix_agents_current_version", "ix_agents_default_route",
+    "ix_texec_tool", "ix_texec_tool_version",
+}
+
+
 def test_t21_index_objects_exactly_eight(db) -> None:
-    """T-21 — D-P09-15: the 8 index objects (plus 4 implicit PK indexes)."""
+    """T-21 — D-P09-15 的 8 对象（+4 隐式 PK）+ P12 (0015) 交付的 7 个反查索引。"""
     names = {r[0] for r in _rows(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND tablename = ANY(:t)",
         t=list(P09_TABLES),
     )}
-    assert names == P09_INDEX_OBJECTS | P09_CONSTRAINT_BACKED_INDEXES | P09_PK_INDEXES
-    assert len(names) == 12
+    assert names == (P09_INDEX_OBJECTS | P09_CONSTRAINT_BACKED_INDEXES | P09_PK_INDEXES
+                     | P12_P09_TABLE_INDEXES)
+    assert len(names) == 19
     # D-P09-15 deliverables = 8 index objects: 7 explicit index objects
     # + 1 UNIQUE CONSTRAINT (uq_agent_versions, backing index of the same name)
     assert len(P09_INDEX_OBJECTS) == 7
@@ -476,15 +487,20 @@ def test_t21_index_objects_exactly_eight(db) -> None:
 
 
 def test_t22_no_extra_fk_column_indexes(db) -> None:
-    """T-22 — no additional single FK-column indexes (STEP1B_INDEX_STRATEGY authority)."""
+    """T-22 — no additional single FK-column indexes (STEP1B_INDEX_STRATEGY authority).
+
+    `GUARD-1`（2026-09-25 Human Decision · APPROVED）：P12（0015）交付其中恰 5 名
+    （ix_ap_permission / ix_ap_tool / ix_ap_version / ix_agents_current_version /
+    ix_agents_default_route）⇒ 已从本 forbidden 集移除（`removed ⊆ P12 CREATE set`）；
+    其余 5 名保留（`remaining ∩ P12 CREATE set = ∅`）。
+    """
     names = {r[0] for r in _rows(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND tablename = ANY(:t)",
         t=list(P09_TABLES),
     )}
     forbidden = {
-        "ix_agents_owner", "ix_agents_space", "ix_agents_current_version",
-        "ix_agents_default_route", "ix_texec_agent", "ix_texec_actor",
-        "ix_ap_version", "ix_ap_permission", "ix_ap_tool",
+        "ix_agents_owner", "ix_agents_space",
+        "ix_texec_agent", "ix_texec_actor",
         "ix_agent_versions_published_by",
     }
     assert not (names & forbidden)
@@ -819,7 +835,8 @@ def test_t29_object_names_exact(db) -> None:
     )}
     assert checks == P09_CHECK_CONSTRAINTS
     assert fks == set(FK_DELETE_RULES)
-    assert indexes == P09_INDEX_OBJECTS | P09_CONSTRAINT_BACKED_INDEXES | P09_PK_INDEXES
+    assert indexes == (P09_INDEX_OBJECTS | P09_CONSTRAINT_BACKED_INDEXES | P09_PK_INDEXES
+                       | P12_P09_TABLE_INDEXES)   # + P12 (0015) 7 个反查索引
     assert triggers == P09_TRIGGERS
     assert functions == P09_FUNCTIONS
 
@@ -843,12 +860,21 @@ def test_t30_default_matrix(db) -> None:
 
 
 # ===================================================== T-12 / T-14 / T-15 / T-16 / T-17 / T-18
-def test_t12_acl_triggers_g_h_i_j_absent(db) -> None:
-    """T-12 — D-P09-06 = A: G/H/I/J must not exist (P09 后)."""
-    triggers = {r[0] for r in _rows("SELECT tgname FROM pg_trigger WHERE NOT tgisinternal")}
-    assert not (triggers & G_H_I_J)
+def test_t12_acl_triggers_g_h_i_j_present_on_canonical_tables(db) -> None:
+    """T-12 — D-P09-06（历史）：G/H/I/J 在 P09 时不存在；`D-P11-01`（2026-09-26
+    实施授权）已交付四者，此断言翻转为**规范表挂载**的存在性检查。"""
+    placement = dict(_rows(
+        "SELECT tgname, tgrelid::regclass::text FROM pg_trigger "
+        "WHERE NOT tgisinternal AND tgparentid = 0 AND tgname = ANY(:n)",
+        n=sorted(G_H_I_J)))
+    assert placement == {
+        "tg_acl_subject_exists": "resource_permissions",
+        "tg_acl_user_hard_delete": "users",
+        "tg_acl_role_delete_block": "roles",
+        "tg_agent_acl_expire": "agents",
+    }
+    # P09 自身交付面不含任何 G/H/I/J 同名函数（函数名 = enforce_*，无重叠）
     functions = {r[0] for r in _rows("SELECT proname FROM pg_proc")}
-    # the trigger *functions* are named enforce_* today; ensure no P09-era ACL function exists
     assert not {f for f in functions if f in G_H_I_J}
 
 
@@ -965,7 +991,7 @@ def test_t33_downgrade_leaves_zero_residual() -> None:
     reset_test_database()
     cfg = make_config(lock_mode="fail")
     upgrade(cfg, "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
 
     downgrade(cfg, "0010_b1_6_ai_gateway")
     assert current_revision() == "0010_b1_6_ai_gateway"
@@ -1003,5 +1029,5 @@ def test_t33_downgrade_leaves_zero_residual() -> None:
 
     # re-upgrade roundtrip
     upgrade(cfg, "head")
-    assert current_revision() == "0012_authz_enforcement"
+    assert current_revision() == "0015_p12_indexes"
     reset_test_database()

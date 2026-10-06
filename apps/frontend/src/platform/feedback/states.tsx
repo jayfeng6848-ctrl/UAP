@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-export function LoadingIndicator({ label = 'Loading…' }: { label?: string }) {
+export function LoadingIndicator({ label = '正在加载…' }: { label?: string }) {
   return (
     <p role="status" aria-live="polite">
       {label}
@@ -29,12 +29,12 @@ export function GlobalError({
 }) {
   return (
     <section role="alert" aria-labelledby="uap-global-error-title">
-      <h2 id="uap-global-error-title">Something went wrong</h2>
+      <h2 id="uap-global-error-title">出现了一点问题</h2>
       <p>{message}</p>
-      {correlationId ? <p data-testid="uap-correlation-id">Reference: {correlationId}</p> : null}
+      {correlationId ? <p data-testid="uap-correlation-id">参考编号：{correlationId}</p> : null}
       {onRetry ? (
         <button type="button" onClick={onRetry}>
-          Try again
+          重试
         </button>
       ) : null}
     </section>

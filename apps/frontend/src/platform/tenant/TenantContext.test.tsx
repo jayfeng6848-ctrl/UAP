@@ -107,7 +107,7 @@ describe('TenantBoundary', () => {
     render(<TenantScreen initialEntry="/tenants/not-a-tenant/company" />);
 
     expect(screen.getByTestId('uap-tenant-unresolved')).toHaveTextContent(
-      'Tenant context unavailable',
+        '工作空间不可用',
     );
     expect(screen.queryByTestId('probe-tenant')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('outside-tenant')[0]).toHaveTextContent('none');

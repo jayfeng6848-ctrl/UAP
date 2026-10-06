@@ -11,6 +11,8 @@ export const ROUTES = {
   login: '/login',
   forbidden: '/403',
   company: '/tenants/:tenant_id/company',
+  ai: '/tenants/:tenant_id/ai',
+  aiEntry: '/ai',
 } as const;
 
 export const TENANT_PARAM = 'tenant_id';

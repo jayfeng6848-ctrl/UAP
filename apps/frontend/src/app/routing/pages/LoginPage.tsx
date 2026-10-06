@@ -22,8 +22,7 @@ interface LoginLocationState {
 }
 
 /** Explains what the Device ID is without exposing it as a developer flag. */
-const DEVICE_HINT =
-  'The id of the device already enrolled for this account. The platform issues a session only for a verified device.';
+const DEVICE_HINT = '这是已经为该账号注册的设备 ID。只有在已验证的设备上才会建立会话。';
 
 export function LoginPage() {
   const { login, error } = useAuth();
@@ -39,10 +38,10 @@ export function LoginPage() {
   const trimmedLogin = loginId.trim();
   const trimmedDevice = deviceId.trim();
 
-  const loginError = touched && trimmedLogin.length === 0 ? 'Login is required.' : undefined;
-  const passwordError = touched && password.length === 0 ? 'Password is required.' : undefined;
+  const loginError = touched && trimmedLogin.length === 0 ? '请输入账号。' : undefined;
+  const passwordError = touched && password.length === 0 ? '请输入密码。' : undefined;
   const deviceError =
-    touched && trimmedDevice.length === 0 ? 'Device ID is required.' : undefined;
+    touched && trimmedDevice.length === 0 ? '请输入设备 ID。' : undefined;
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,29 +61,29 @@ export function LoginPage() {
     }
     if (outcome === 'device_required') {
       setNotice(
-        'Credentials verified, but this device is not enrolled: the platform issues a session only for a verified device. Enrolling a device is a separate step and never happens on this page.',
+        '凭据已验证，但这台设备尚未注册：只有在已验证的设备上才会建立会话。设备注册是单独的步骤，不会在这个页面完成。',
       );
       return;
     }
-    setNotice('Sign-in failed. Check the account, the password and the device id, then try again.');
+    setNotice('登录失败。请检查账号、密码和设备 ID，然后重试。');
   };
 
   return (
     <Card>
       <PageHeader
-        title="Sign in to UAP Console"
-        description="Platform identity, password and the enrolled device this session is bound to."
+        title="登录 UAP"
+        description="使用账号、密码和已注册的设备登录。"
       />
       <form onSubmit={(event) => void onSubmit(event)} noValidate>
-        <TextField label="Login" value={loginId} onChange={setLoginId} error={loginError} />
+        <TextField label="账号" value={loginId} onChange={setLoginId} error={loginError} />
         <TextField
-          label="Password"
+          label="密码"
           type="password"
           value={password}
           onChange={setPassword}
           error={passwordError}
         />
-        <Field label="Device ID" error={deviceError} hint={DEVICE_HINT}>
+        <Field label="设备 ID" error={deviceError} hint={DEVICE_HINT}>
           {({ id, describedBy, invalid }) => (
             <Input
               id={id}
@@ -99,7 +98,7 @@ export function LoginPage() {
           )}
         </Field>
         <Button type="submit" loading={submitting}>
-          Sign in
+          登录
         </Button>
       </form>
       {notice ? <InlineError>{notice}</InlineError> : null}

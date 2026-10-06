@@ -50,12 +50,14 @@ export function TextField({
   onChange,
   error,
   type = 'text',
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
   type?: 'text' | 'password';
+  placeholder?: string;
 }) {
   return (
     <Field label={label} error={error}>
@@ -64,6 +66,7 @@ export function TextField({
           id={id}
           type={type}
           value={value}
+          placeholder={placeholder}
           invalid={invalid}
           aria-describedby={describedBy}
           onChange={(event) => onChange(event.target.value)}

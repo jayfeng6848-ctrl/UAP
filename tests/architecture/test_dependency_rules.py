@@ -230,7 +230,15 @@ def test_domains_define_no_schema_or_persistence() -> None:
     assert not offenders, f"domain must not define schema in STEP 0: {offenders}"
 
 
-def test_domain_manifests_are_placeholders() -> None:
+#: Domains explicitly activated by a frozen decision. ``company`` was activated by
+#: ``P20 COMPANY DOMAIN IMPLEMENTATION AUTHORIZATION`` (PDL Appendix AF · D-P20D-10);
+#: every other domain must still be a STEP-0 placeholder. This whitelist is the
+#: explicit replacement for the earlier "all manifests are placeholders" rule and
+#: may only be extended by a new frozen decision.
+ACTIVE_DOMAINS = frozenset({"company"})
+
+
+def test_domain_manifests_match_activation_state() -> None:
     from domains import list_domains
 
     manifests = list_domains()
@@ -241,9 +249,14 @@ def test_domain_manifests_are_placeholders() -> None:
         "entertainment",
     }
     for manifest in manifests:
-        assert manifest["status"] == "placeholder"
-        assert manifest["tables"] == []
         assert manifest["core_dependencies"]
+        if manifest["domain_id"] in ACTIVE_DOMAINS:
+            assert manifest["status"] == "active"
+            # An activated domain must declare the tables a migration actually owns.
+            assert manifest["tables"], "activated domain must declare its tables"
+        else:
+            assert manifest["status"] == "placeholder"
+            assert manifest["tables"] == []
 
 
 def test_domains_may_depend_on_core_but_not_reverse() -> None:
